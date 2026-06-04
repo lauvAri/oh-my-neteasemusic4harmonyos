@@ -1,0 +1,293 @@
+import media from '@ohos.multimedia.media';
+import avSessionManager from '@ohos.multimedia.avsession';
+import common from '@ohos.app.ability.common';
+import { SongApi } from '../data/api/SongApi';
+import { SongRepositoryImpl } from '../data/repository/SongRepositoryImpl';
+import { GetSongDetailUseCase, SongDetailAggregate } from '../domain/usecase/GetSongDetailUseCase';
+import { GetSongPlayUrlUseCase } from '../domain/usecase/GetSongPlayUrlUseCase';
+
+export class PlayerEngine {
+  private static instance: PlayerEngine | null = null;
+
+  private repository: SongRepositoryImpl = new SongRepositoryImpl(new SongApi());
+  private getSongPlayUrlUseCase: GetSongPlayUrlUseCase = new GetSongPlayUrlUseCase(this.repository);
+  private getSongDetailUseCase: GetSongDetailUseCase = new GetSongDetailUseCase(this.repository);
+
+  private avPlayer: media.AVPlayer | null = null;
+  private playerState: string = '';
+  private currentSongId: number = 0;
+  private currentUrl: string = '';
+  private progressTimerId: number = -1;
+  private session: avSessionManager.AVSession | null = null;
+  private sessionInited: boolean = false;
+  private currentTitle: string = '未选择歌曲';
+  private currentArtist: string = '';
+  private currentCover: string = '';
+
+  private constructor() {
+    AppStorage.setOrCreate<boolean>('miniPlayerPlaying', false);
+    AppStorage.setOrCreate<number>('selectedSongId', 0);
+    AppStorage.setOrCreate<string>('miniPlayerTitle', '未选择歌曲');
+    AppStorage.setOrCreate<string>('miniPlayerArtist', '');
+    AppStorage.setOrCreate<boolean>('miniPlayerVisible', false);
+    AppStorage.setOrCreate<number>('playerCurrentMs', 0);
+    AppStorage.setOrCreate<number>('playerDurationMs', 0);
+  }
+
+  static getInstance(): PlayerEngine {
+    if (!PlayerEngine.instance) {
+      PlayerEngine.instance = new PlayerEngine();
+    }
+    return PlayerEngine.instance;
+  }
+
+  async initSession(context: common.UIAbilityContext): Promise<void> {
+    if (this.sessionInited) {
+      return;
+    }
+    this.session = await avSessionManager.createAVSession(context, 'netease_music_session', 'audio');
+
+    this.session.on('play', async () => {
+      await this.resume();
+    });
+    this.session.on('pause', async () => {
+      await this.pause();
+    });
+    this.session.on('seek', async (position: number) => {
+      await this.seekTo(position);
+    });
+
+    await this.session.activate();
+    this.sessionInited = true;
+    await this.reportSessionMetadata();
+    await this.reportSessionState();
+  }
+
+  private setPlaying(playing: boolean): void {
+    AppStorage.setOrCreate<boolean>('miniPlayerPlaying', playing);
+  }
+
+  private setSongMeta(title: string, artist: string): void {
+    AppStorage.setOrCreate<string>('miniPlayerTitle', title);
+    AppStorage.setOrCreate<string>('miniPlayerArtist', artist);
+    AppStorage.setOrCreate<boolean>('miniPlayerVisible', true);
+  }
+
+  private setProgress(currentMs: number, durationMs: number): void {
+    AppStorage.setOrCreate<number>('playerCurrentMs', currentMs);
+    AppStorage.setOrCreate<number>('playerDurationMs', durationMs);
+  }
+
+  private mapPlaybackState(): avSessionManager.PlaybackState {
+    if (this.playerState === 'playing') {
+      return avSessionManager.PlaybackState.PLAYBACK_STATE_PLAY;
+    }
+    if (this.playerState === 'paused') {
+      return avSessionManager.PlaybackState.PLAYBACK_STATE_PAUSE;
+    }
+    return avSessionManager.PlaybackState.PLAYBACK_STATE_STOP;
+  }
+
+  private async reportSessionMetadata(): Promise<void> {
+    if (!this.session) {
+      return;
+    }
+    const duration = AppStorage.get<number>('playerDurationMs') ?? 0;
+    await this.session.setAVMetadata({
+      assetId: `${this.currentSongId}`,
+      title: this.currentTitle,
+      artist: this.currentArtist,
+      duration: duration,
+      mediaImage: this.currentCover
+    });
+  }
+
+  private async reportSessionState(): Promise<void> {
+    if (!this.session) {
+      return;
+    }
+    const position = AppStorage.get<number>('playerCurrentMs') ?? 0;
+    await this.session.setAVPlaybackState({
+      state: this.mapPlaybackState(),
+      position: {
+        elapsedTime: position,
+        updateTime: Date.now()
+      },
+      speed: 1
+    });
+  }
+
+  private startProgressTimer(): void {
+    this.stopProgressTimer();
+    this.progressTimerId = setInterval(() => {
+      if (!this.avPlayer) {
+        return;
+      }
+      const duration = this.avPlayer.duration > 0 ? this.avPlayer.duration : 0;
+      const current = this.avPlayer.currentTime > 0 ? this.avPlayer.currentTime : 0;
+      this.setProgress(current, duration);
+      this.reportSessionState().catch((error: Error) => {
+        console.error(`report session state failed: ${error.message}`);
+      });
+    }, 500) as number;
+  }
+
+  private stopProgressTimer(): void {
+    if (this.progressTimerId >= 0) {
+      clearInterval(this.progressTimerId);
+      this.progressTimerId = -1;
+    }
+  }
+
+  private async ensurePlayer(): Promise<media.AVPlayer> {
+    if (this.avPlayer) {
+      return this.avPlayer;
+    }
+    this.avPlayer = await media.createAVPlayer();
+    this.avPlayer.on('stateChange', (state: string) => {
+      this.playerState = state;
+      if (state === 'playing') {
+        this.setPlaying(true);
+        this.startProgressTimer();
+      } else if (state === 'paused' || state === 'completed' || state === 'stopped' || state === 'released') {
+        this.setPlaying(false);
+        if (state === 'completed') {
+          const duration = this.avPlayer ? this.avPlayer.duration : 0;
+          this.setProgress(duration, duration);
+        }
+        this.stopProgressTimer();
+      }
+      this.reportSessionState().catch((error: Error) => {
+        console.error(`report session state failed: ${error.message}`);
+      });
+    });
+    return this.avPlayer;
+  }
+
+  private async recreatePlayer(): Promise<media.AVPlayer> {
+    if (this.avPlayer) {
+      try {
+        await this.avPlayer.release();
+      } catch (error) {
+        console.error(`release player failed: ${(error as Error).message}`);
+      } finally {
+        this.avPlayer = null;
+        this.playerState = '';
+      }
+    }
+    this.currentUrl = '';
+    this.setProgress(0, 0);
+    this.stopProgressTimer();
+    return this.ensurePlayer();
+  }
+
+  private async waitForInitialized(timeoutMs: number = 3000): Promise<void> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (this.playerState === 'initialized') {
+        return;
+      }
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolve();
+        }, 50);
+      });
+    }
+    throw new Error(`播放器初始化超时，当前状态: ${this.playerState}`);
+  }
+
+  private async loadSongMeta(songId: number): Promise<void> {
+    try {
+      const aggregate: SongDetailAggregate = await this.getSongDetailUseCase.execute(songId);
+      const title = aggregate.detail.name;
+      const artist = aggregate.detail.ar.map((item) => item.name).join(' / ');
+      this.currentTitle = title;
+      this.currentArtist = artist;
+      this.currentCover = aggregate.detail.al.picUrl;
+      this.setSongMeta(title, artist);
+    } catch (error) {
+      this.currentTitle = `歌曲 ${songId}`;
+      this.currentArtist = '详情加载失败';
+      this.currentCover = '';
+      this.setSongMeta(`歌曲 ${songId}`, '详情加载失败');
+    }
+    await this.reportSessionMetadata();
+  }
+
+  async playSong(songId: number): Promise<void> {
+    AppStorage.setOrCreate<number>('selectedSongId', songId);
+    await this.loadSongMeta(songId);
+
+    const playUrl = await this.getSongPlayUrlUseCase.execute(songId);
+    let player = await this.ensurePlayer();
+
+    if (this.currentSongId !== songId || this.currentUrl !== playUrl) {
+      player = await this.recreatePlayer();
+      player.url = playUrl;
+      this.currentUrl = playUrl;
+      this.currentSongId = songId;
+      await this.waitForInitialized();
+      await player.prepare();
+    } else if (this.playerState === 'initialized') {
+      await player.prepare();
+    } else if (this.playerState === 'stopped') {
+      player = await this.recreatePlayer();
+      player.url = playUrl;
+      await this.waitForInitialized();
+      await player.prepare();
+    }
+
+    await player.play();
+    this.setPlaying(true);
+    this.startProgressTimer();
+    await this.reportSessionState();
+  }
+
+  async pause(): Promise<void> {
+    if (!this.avPlayer) {
+      return;
+    }
+    if (this.playerState === 'paused' || this.playerState === 'completed') {
+      this.setPlaying(false);
+      return;
+    }
+    await this.avPlayer.pause();
+    this.setPlaying(false);
+    this.stopProgressTimer();
+    await this.reportSessionState();
+  }
+
+  async resume(): Promise<void> {
+    if (!this.avPlayer) {
+      const songId = AppStorage.get<number>('selectedSongId');
+      if (songId && songId > 0) {
+        await this.playSong(songId);
+      }
+      return;
+    }
+    await this.avPlayer.play();
+    this.setPlaying(true);
+    this.startProgressTimer();
+    await this.reportSessionState();
+  }
+
+  async seekTo(positionMs: number): Promise<void> {
+    if (!this.avPlayer) {
+      return;
+    }
+    const duration = this.avPlayer.duration > 0 ? this.avPlayer.duration : 0;
+    const target = Math.max(0, Math.min(positionMs, duration));
+    await this.avPlayer.seek(target);
+    this.setProgress(target, duration);
+    await this.reportSessionState();
+  }
+
+  async togglePlay(): Promise<void> {
+    const isPlaying = AppStorage.get<boolean>('miniPlayerPlaying') === true;
+    if (isPlaying) {
+      await this.pause();
+    } else {
+      await this.resume();
+    }
+  }
+}
