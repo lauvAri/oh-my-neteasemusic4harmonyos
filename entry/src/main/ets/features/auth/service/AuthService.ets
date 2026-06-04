@@ -104,6 +104,21 @@ export class AuthService {
     return this.httpClient.post<UserAccountResponse>('/user/account', body);
   }
 
+  async hasValidSession(): Promise<boolean> {
+    const cookie = await this.getCookie();
+    if (cookie.trim().length === 0) {
+      return false;
+    }
+
+    try {
+      await this.getAccountInfo();
+      return true;
+    } catch (error) {
+      await this.clearCookie();
+      return false;
+    }
+  }
+
   async getCookie(): Promise<string> {
     if (this.sessionStore === undefined) {
       return '';

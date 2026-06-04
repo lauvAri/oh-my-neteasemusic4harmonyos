@@ -53,6 +53,7 @@ export struct MinePage {
       this.accountVipType = response.account.vipType;
       this.loaded = true;
     } catch (error) {
+      await this.authService.clearCookie();
       this.loaded = false;
       this.errorText = `账号信息获取失败：${(error as Error).message}`;
       promptAction.showToast({ message: '账号信息获取失败' });
