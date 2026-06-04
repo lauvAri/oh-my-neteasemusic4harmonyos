@@ -3,6 +3,8 @@ import { MinePage } from './MinePage';
 import { MiniPlayerBar } from '../features/music/ui/mini/MiniPlayerBar';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
 import common from '@ohos.app.ability.common';
+import { HttpClient } from '../common/network/HttpClient';
+import { SessionStore } from '../common/storage/SessionStore';
 
 @Entry
 @Component
@@ -14,6 +16,7 @@ struct MainTabs {
 
   aboutToAppear(): void {
     const context = getContext(this) as common.UIAbilityContext;
+    HttpClient.setGlobalCookieProvider(new SessionStore(context));
     this.engine.initSession(context).catch((error: Error) => {
       console.error(`init session failed: ${error.message}`);
     });

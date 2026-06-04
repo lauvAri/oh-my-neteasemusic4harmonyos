@@ -9,14 +9,18 @@ interface ApiResponse {
 
 interface HttpHeaders {
   'Content-Type': string;
-  Cookie?: string;
 }
 
 export interface CookieProvider {
   getCookie: () => Promise<string>;
 }
 
+interface RequestBody {
+  cookie?: string;
+}
+
 export class HttpClient {
+  private static globalCookieProvider?: CookieProvider;
   private baseUrl: string;
   private cookieProvider?: CookieProvider;
 
@@ -25,41 +29,49 @@ export class HttpClient {
     this.cookieProvider = cookieProvider;
   }
 
-  async get<T extends ApiResponse>(path: string): Promise<T> {
-    return this.request<T>(http.RequestMethod.GET, path);
+  static setGlobalCookieProvider(cookieProvider: CookieProvider): void {
+    HttpClient.globalCookieProvider = cookieProvider;
   }
 
   async post<T extends ApiResponse>(path: string, body?: object): Promise<T> {
-    return this.request<T>(http.RequestMethod.POST, path, body);
+    return this.request<T>(path, body, [200], true);
   }
 
-  async getWithSuccessCodes<T extends ApiResponse>(path: string, successCodes: number[]): Promise<T> {
-    return this.request<T>(http.RequestMethod.GET, path, undefined, successCodes);
+  async postWithoutCookie<T extends ApiResponse>(path: string, body?: object): Promise<T> {
+    return this.request<T>(path, body, [200], false);
+  }
+
+  async postWithSuccessCodesWithoutCookie<T extends ApiResponse>(
+    path: string,
+    body: object | undefined,
+    successCodes: number[]
+  ): Promise<T> {
+    return this.request<T>(path, body, successCodes, false);
   }
 
   private async request<T extends ApiResponse>(
-    method: http.RequestMethod,
     path: string,
     body?: object,
-    successCodes: number[] = [200]
+    successCodes: number[] = [200],
+    shouldAppendCookie: boolean = true
   ): Promise<T> {
     const request = http.createHttp();
     const url = this.buildUrl(path);
 
     try {
-      const headers = await this.createHeaders();
+      const requestBodyText = await this.createBodyText(body, shouldAppendCookie);
       const response = await request.request(url, {
-        method: method,
-        header: headers,
-        extraData: body === undefined ? undefined : JSON.stringify(body),
+        method: http.RequestMethod.POST,
+        header: this.createHeaders(),
+        extraData: requestBodyText,
         expectDataType: http.HttpDataType.STRING,
         connectTimeout: 15000,
         readTimeout: 15000
       });
 
-      const bodyText = typeof response.result === 'string' ? response.result : JSON.stringify(response.result);
+      const responseBodyText = typeof response.result === 'string' ? response.result : JSON.stringify(response.result);
       try {
-        const parsed = JSON.parse(bodyText) as T;
+        const parsed = JSON.parse(responseBodyText) as T;
         if (typeof parsed.code !== 'number') {
           throw ApiException.parse('响应中缺少 code 字段');
         }
@@ -84,17 +96,24 @@ export class HttpClient {
     }
   }
 
-  private async createHeaders(): Promise<HttpHeaders> {
-    const headers: HttpHeaders = {
+  private createHeaders(): HttpHeaders {
+    return {
       'Content-Type': 'application/json'
     };
-    if (this.cookieProvider) {
-      const cookie = await this.cookieProvider.getCookie();
-      if (cookie.length > 0) {
-        headers.Cookie = cookie;
+  }
+
+  private async createBodyText(body?: object, shouldAppendCookie: boolean = true): Promise<string> {
+    const requestBody = (body === undefined ? {} : body) as RequestBody;
+    if (shouldAppendCookie) {
+      const cookieProvider = this.cookieProvider ?? HttpClient.globalCookieProvider;
+      if (cookieProvider !== undefined) {
+        const cookie = await cookieProvider.getCookie();
+        if (cookie.length > 0) {
+          requestBody.cookie = cookie;
+        }
       }
     }
-    return headers;
+    return JSON.stringify(requestBody);
   }
 
   private buildUrl(path: string): string {

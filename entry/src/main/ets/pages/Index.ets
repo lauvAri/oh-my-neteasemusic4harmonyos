@@ -1,6 +1,8 @@
 import common from '@ohos.app.ability.common';
 import { promptAction, router } from '@kit.ArkUI';
 import { AuthService, QrLoginSession } from '../features/auth/service/AuthService';
+import { HttpClient } from '../common/network/HttpClient';
+import { SessionStore } from '../common/storage/SessionStore';
 
 @Entry
 @Component
@@ -15,6 +17,7 @@ struct Index {
 
   aboutToAppear(): void {
     const context = getContext(this) as common.UIAbilityContext;
+    HttpClient.setGlobalCookieProvider(new SessionStore(context));
     this.authService = new AuthService(context);
     this.tryEnterWithSavedCookie();
   }

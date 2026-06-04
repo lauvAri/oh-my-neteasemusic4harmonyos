@@ -6,6 +6,7 @@ export struct MiniPlayerBar {
   @StorageLink('miniPlayerVisible') visible: boolean = false;
   @StorageLink('miniPlayerTitle') songTitle: string = '未选择歌曲';
   @StorageLink('miniPlayerArtist') artistText: string = '';
+  @StorageLink('miniPlayerCover') coverUrl: string = '';
   @StorageLink('miniPlayerPlaying') playing: boolean = false;
   @StorageLink('selectedSongId') songId: number = 0;
   @StorageLink('playerCurrentMs') currentMs: number = 0;
@@ -24,6 +25,30 @@ export struct MiniPlayerBar {
     if (this.visible) {
       Column({ space: 6 }) {
         Row({ space: 12 }) {
+          if (this.coverUrl.length > 0) {
+            Image(this.coverUrl)
+              .width(44)
+              .height(44)
+              .borderRadius(6)
+              .objectFit(ImageFit.Cover)
+              .onClick(() => {
+                this.openPlayerPage();
+              })
+          } else {
+            Stack() {
+              Text('♪')
+                .fontSize(20)
+                .fontColor('#8a8f98')
+            }
+            .width(44)
+            .height(44)
+            .backgroundColor('#e5e7eb')
+            .borderRadius(6)
+            .onClick(() => {
+              this.openPlayerPage();
+            })
+          }
+
           Column({ space: 2 }) {
             Text(this.songTitle)
               .fontSize(15)
@@ -40,15 +65,7 @@ export struct MiniPlayerBar {
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
           .onClick(() => {
-            if (this.songId <= 0) {
-              return;
-            }
-            router.pushUrl({
-              url: 'pages/MusicPlayerPage',
-              params: {
-                songId: this.songId
-              }
-            });
+            this.openPlayerPage();
           })
 
           Button() {
@@ -77,5 +94,17 @@ export struct MiniPlayerBar {
       .backgroundColor('#f2f3f5')
       .borderRadius(12)
     }
+  }
+
+  private openPlayerPage(): void {
+    if (this.songId <= 0) {
+      return;
+    }
+    router.pushUrl({
+      url: 'pages/MusicPlayerPage',
+      params: {
+        songId: this.songId
+      }
+    });
   }
 }

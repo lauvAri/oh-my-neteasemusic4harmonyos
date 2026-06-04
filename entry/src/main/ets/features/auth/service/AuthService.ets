@@ -62,10 +62,6 @@ export interface UserAccountResponse {
   profile: UserProfile;
 }
 
-interface UserAccountRequest {
-  cookie: string;
-}
-
 export class AuthService {
   private httpClient: HttpClient;
   private sessionStore?: SessionStore;
@@ -76,8 +72,10 @@ export class AuthService {
   }
 
   async createQrLogin(): Promise<QrLoginSession> {
-    const keyResponse = await this.httpClient.get<QrKeyResponse>(`/login/qr/key?timestamp=${Date.now()}`);
-    const qrResponse = await this.httpClient.get<QrCreateResponse>(
+    const keyResponse = await this.httpClient.postWithoutCookie<QrKeyResponse>(
+      `/login/qr/key?timestamp=${Date.now()}`
+    );
+    const qrResponse = await this.httpClient.postWithoutCookie<QrCreateResponse>(
       `/login/qr/create?key=${encodeURIComponent(keyResponse.data.unikey)}&qrimg=true&timestamp=${Date.now()}`
     );
     return {
@@ -88,8 +86,9 @@ export class AuthService {
   }
 
   async checkQrLogin(key: string): Promise<QrCheckResponse> {
-    const response = await this.httpClient.getWithSuccessCodes<QrCheckResponse>(
+    const response = await this.httpClient.postWithSuccessCodesWithoutCookie<QrCheckResponse>(
       `/login/qr/check?key=${encodeURIComponent(key)}&timestamp=${Date.now()}`,
+      undefined,
       [800, 801, 802, 803]
     );
     if (response.code === 803 && response.cookie !== undefined && response.cookie.length > 0) {
@@ -99,9 +98,7 @@ export class AuthService {
   }
 
   async getAccountInfo(): Promise<UserAccountResponse> {
-    const cookie = await this.getCookie();
-    const body: UserAccountRequest = { cookie: cookie };
-    return this.httpClient.post<UserAccountResponse>('/user/account', body);
+    return this.httpClient.post<UserAccountResponse>('/user/account');
   }
 
   async hasValidSession(): Promise<boolean> {

@@ -2,6 +2,10 @@ import { HttpClient } from '../../../../common/network/HttpClient';
 import { NETEASE_API_BASE_URL } from '../../../../common/network/ApiConfig';
 import { BannerResponse } from '../../domain/model/BannerModels';
 
+interface BannerRequest {
+  type: number;
+}
+
 export class BannerApi {
   private httpClient: HttpClient;
 
@@ -10,6 +14,7 @@ export class BannerApi {
   }
 
   async getBanners(): Promise<BannerResponse> {
-    return this.httpClient.get<BannerResponse>('/banner?type=0');
+    const body: BannerRequest = { type: 0 };
+    return this.httpClient.post<BannerResponse>('/banner', body);
   }
 }

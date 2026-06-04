@@ -3,6 +3,7 @@ import avSessionManager from '@ohos.multimedia.avsession';
 import common from '@ohos.app.ability.common';
 import { SongApi } from '../data/api/SongApi';
 import { SongRepositoryImpl } from '../data/repository/SongRepositoryImpl';
+import { LyricResponse } from '../domain/model/SongModels';
 import { GetSongDetailUseCase, SongDetailAggregate } from '../domain/usecase/GetSongDetailUseCase';
 import { GetSongPlayUrlUseCase } from '../domain/usecase/GetSongPlayUrlUseCase';
 
@@ -23,15 +24,22 @@ export class PlayerEngine {
   private currentTitle: string = '未选择歌曲';
   private currentArtist: string = '';
   private currentCover: string = '';
+  private metaRequestVersion: number = 0;
+  private lyricRequestVersion: number = 0;
 
   private constructor() {
     AppStorage.setOrCreate<boolean>('miniPlayerPlaying', false);
     AppStorage.setOrCreate<number>('selectedSongId', 0);
     AppStorage.setOrCreate<string>('miniPlayerTitle', '未选择歌曲');
     AppStorage.setOrCreate<string>('miniPlayerArtist', '');
+    AppStorage.setOrCreate<string>('miniPlayerCover', '');
     AppStorage.setOrCreate<boolean>('miniPlayerVisible', false);
     AppStorage.setOrCreate<number>('playerCurrentMs', 0);
     AppStorage.setOrCreate<number>('playerDurationMs', 0);
+    AppStorage.setOrCreate<string>('currentSongRawLyric', '');
+    AppStorage.setOrCreate<string>('currentSongLyric', '');
+    AppStorage.setOrCreate<string>('currentSongLyricError', '');
+    AppStorage.setOrCreate<boolean>('currentSongLyricLoading', false);
   }
 
   static getInstance(): PlayerEngine {
@@ -67,15 +75,23 @@ export class PlayerEngine {
     AppStorage.setOrCreate<boolean>('miniPlayerPlaying', playing);
   }
 
-  private setSongMeta(title: string, artist: string): void {
+  private setSongMeta(title: string, artist: string, cover: string): void {
     AppStorage.setOrCreate<string>('miniPlayerTitle', title);
     AppStorage.setOrCreate<string>('miniPlayerArtist', artist);
+    AppStorage.setOrCreate<string>('miniPlayerCover', cover);
     AppStorage.setOrCreate<boolean>('miniPlayerVisible', true);
   }
 
   private setProgress(currentMs: number, durationMs: number): void {
     AppStorage.setOrCreate<number>('playerCurrentMs', currentMs);
     AppStorage.setOrCreate<number>('playerDurationMs', durationMs);
+  }
+
+  private setLyricState(rawLyric: string, lyric: string, errorText: string, loading: boolean): void {
+    AppStorage.setOrCreate<string>('currentSongRawLyric', rawLyric);
+    AppStorage.setOrCreate<string>('currentSongLyric', lyric);
+    AppStorage.setOrCreate<string>('currentSongLyricError', errorText);
+    AppStorage.setOrCreate<boolean>('currentSongLyricLoading', loading);
   }
 
   private mapPlaybackState(): avSessionManager.PlaybackState {
@@ -197,35 +213,117 @@ export class PlayerEngine {
   }
 
   private async loadSongMeta(songId: number): Promise<void> {
+    const requestVersion = ++this.metaRequestVersion;
     try {
       const aggregate: SongDetailAggregate = await this.getSongDetailUseCase.execute(songId);
+      if (requestVersion !== this.metaRequestVersion || (AppStorage.get<number>('selectedSongId') ?? 0) !== songId) {
+        return;
+      }
       const title = aggregate.detail.name;
       const artist = aggregate.detail.ar.map((item) => item.name).join(' / ');
       this.currentTitle = title;
       this.currentArtist = artist;
       this.currentCover = aggregate.detail.al.picUrl;
-      this.setSongMeta(title, artist);
+      this.setSongMeta(title, artist, this.currentCover);
     } catch (error) {
+      if (requestVersion !== this.metaRequestVersion || (AppStorage.get<number>('selectedSongId') ?? 0) !== songId) {
+        return;
+      }
       this.currentTitle = `歌曲 ${songId}`;
       this.currentArtist = '详情加载失败';
       this.currentCover = '';
-      this.setSongMeta(`歌曲 ${songId}`, '详情加载失败');
+      this.setSongMeta(`歌曲 ${songId}`, '详情加载失败', '');
     }
     await this.reportSessionMetadata();
   }
 
+  private resolveRawLyric(response: LyricResponse): string {
+    if (response.lrc !== undefined && response.lrc.lyric.length > 0) {
+      return response.lrc.lyric;
+    }
+    if (response.yrc !== undefined && response.yrc.lyric.length > 0) {
+      return response.yrc.lyric;
+    }
+    if (response.tlyric !== undefined && response.tlyric.lyric.length > 0) {
+      return response.tlyric.lyric;
+    }
+    return '';
+  }
+
+  private normalizeLyric(rawLyric: string): string {
+    const lines = rawLyric.split('\n');
+    const normalized: string[] = [];
+    lines.forEach((line: string) => {
+      const trimmed = line.trim();
+      if (trimmed.length === 0 || trimmed.startsWith('{')) {
+        return;
+      }
+      const text = trimmed
+        .replace(/\[[^\]]*\]/g, '')
+        .replace(/\([^)]*\)/g, '')
+        .trim();
+      if (text.length > 0) {
+        normalized.push(text);
+      }
+    });
+    return normalized.join('\n');
+  }
+
+  private async loadSongLyric(songId: number): Promise<void> {
+    const requestVersion = ++this.lyricRequestVersion;
+    this.setLyricState('', '', '', true);
+    try {
+      const response: LyricResponse = await new SongApi().getLyric(songId);
+      if (requestVersion !== this.lyricRequestVersion || (AppStorage.get<number>('selectedSongId') ?? 0) !== songId) {
+        return;
+      }
+      const rawLyric = this.resolveRawLyric(response);
+      const lyricText = this.normalizeLyric(rawLyric);
+      this.setLyricState(rawLyric, lyricText.length > 0 ? lyricText : '暂无歌词', '', false);
+    } catch (error) {
+      if (requestVersion !== this.lyricRequestVersion || (AppStorage.get<number>('selectedSongId') ?? 0) !== songId) {
+        return;
+      }
+      const message = (error as Error).message;
+      this.setLyricState('', '', message.length > 0 ? message : '歌词加载失败', false);
+    }
+  }
+
   async playSong(songId: number): Promise<void> {
+    const sameSongSelected = this.currentSongId === songId && this.currentUrl.length > 0;
+    const canResumeExisting =
+      sameSongSelected &&
+      this.avPlayer !== null &&
+      (this.playerState === 'paused' || this.playerState === 'completed');
+    if (canResumeExisting) {
+      AppStorage.setOrCreate<number>('selectedSongId', songId);
+      await this.resume();
+      return;
+    }
+
     AppStorage.setOrCreate<number>('selectedSongId', songId);
+    this.currentSongId = songId;
+    this.currentTitle = `歌曲 ${songId}`;
+    this.currentArtist = '加载中...';
+    this.currentCover = '';
+    this.setSongMeta(this.currentTitle, this.currentArtist, this.currentCover);
+    this.setProgress(0, 0);
+    this.setLyricState('', '', '', true);
+    await this.reportSessionMetadata();
+    await this.reportSessionState();
     await this.loadSongMeta(songId);
+    await this.loadSongLyric(songId);
 
     const playUrl = await this.getSongPlayUrlUseCase.execute(songId);
+    if ((AppStorage.get<number>('selectedSongId') ?? 0) !== songId) {
+      return;
+    }
     let player = await this.ensurePlayer();
 
     if (this.currentSongId !== songId || this.currentUrl !== playUrl) {
       player = await this.recreatePlayer();
       player.url = playUrl;
       this.currentUrl = playUrl;
-      this.currentSongId = songId;
       await this.waitForInitialized();
       await player.prepare();
     } else if (this.playerState === 'initialized') {

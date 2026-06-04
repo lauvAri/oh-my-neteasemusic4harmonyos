@@ -54,3 +54,15 @@ export interface SongUrlResponse {
   code: number;
   data: SongUrlItem[];
 }
+
+export interface LyricSection {
+  version: number;
+  lyric: string;
+}
+
+export interface LyricResponse {
+  code: number;
+  lrc?: LyricSection;
+  yrc?: LyricSection;
+  tlyric?: LyricSection;
+}
