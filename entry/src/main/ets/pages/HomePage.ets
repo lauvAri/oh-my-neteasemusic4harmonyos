@@ -1,4 +1,5 @@
 import { HomeBanner } from '../features/banner/ui/component/HomeBanner';
+import { RecommendPlaylistRow } from '../features/music/playlist/ui/component/RecommendPlaylistRow';
 import { router } from '@kit.ArkUI';
 
 @Component
@@ -10,6 +11,8 @@ export struct HomePage {
         .fontWeight(FontWeight.Medium)
 
       HomeBanner();
+
+      RecommendPlaylistRow();
 
       Row() {
         Column({ space: 4 }) {

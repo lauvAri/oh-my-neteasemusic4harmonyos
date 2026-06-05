@@ -1,9 +1,9 @@
 import common from '@ohos.app.ability.common';
 import { promptAction, router } from '@kit.ArkUI';
 import { DailyRecommendApi } from '../features/music/data/api/DailyRecommendApi';
-import { DailyRecommendSong } from '../features/music/domain/model/DailyRecommendModels';
+import { Song } from '../features/music/domain/model/Song';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
-import { DailyRecommendSongList } from '../features/music/ui/component/DailyRecommendSongList';
+import { SongList } from '../features/music/ui/component/SongList';
 import { MiniPlayerBar } from '../features/music/ui/mini/MiniPlayerBar';
 
 @Entry
@@ -11,7 +11,7 @@ import { MiniPlayerBar } from '../features/music/ui/mini/MiniPlayerBar';
 struct DailyRecommendPage {
   @State private loading: boolean = true;
   @State private errorMessage: string = '';
-  @State private songs: DailyRecommendSong[] = [];
+  @State private songs: Song[] = [];
 
   private api?: DailyRecommendApi;
   private engine: PlayerEngine = PlayerEngine.getInstance();
@@ -41,7 +41,7 @@ struct DailyRecommendPage {
     }
   }
 
-  private async playSong(song: DailyRecommendSong): Promise<void> {
+  private async playSong(song: Song): Promise<void> {
     try {
       await this.engine.playSong(song.id);
       router.pushUrl({
@@ -110,10 +110,10 @@ struct DailyRecommendPage {
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
       } else {
-        DailyRecommendSongList({
+        SongList({
           songs: this.songs,
           callbacks: {
-            onSongClick: (song: DailyRecommendSong): void => {
+            onSongClick: (song: Song): void => {
               void this.playSong(song);
             }
           }

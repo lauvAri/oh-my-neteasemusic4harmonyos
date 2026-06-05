@@ -1,26 +1,7 @@
-export interface RecommendArtist {
-  id: number;
-  name: string;
-}
-
-export interface RecommendAlbum {
-  id: number;
-  name: string;
-  picUrl: string;
-}
-
-export interface DailyRecommendSong {
-  id: number;
-  name: string;
-  ar: RecommendArtist[];
-  al: RecommendAlbum;
-  dt: number;
-  reason?: string;
-  recommendReason?: string;
-}
+import { Song } from './Song';
 
 export interface DailyRecommendData {
-  dailySongs: DailyRecommendSong[];
+  dailySongs: Song[];
 }
 
 export interface DailyRecommendResponse {
