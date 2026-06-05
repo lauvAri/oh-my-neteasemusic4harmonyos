@@ -1,8 +1,9 @@
 import common from '@ohos.app.ability.common';
 import { promptAction, router } from '@kit.ArkUI';
 import { DailyRecommendApi } from '../features/music/data/api/DailyRecommendApi';
-import { DailyRecommendSong, RecommendArtist } from '../features/music/domain/model/DailyRecommendModels';
+import { DailyRecommendSong } from '../features/music/domain/model/DailyRecommendModels';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
+import { DailyRecommendSongList } from '../features/music/ui/component/DailyRecommendSongList';
 import { MiniPlayerBar } from '../features/music/ui/mini/MiniPlayerBar';
 
 @Entry
@@ -11,7 +12,6 @@ struct DailyRecommendPage {
   @State private loading: boolean = true;
   @State private errorMessage: string = '';
   @State private songs: DailyRecommendSong[] = [];
-  @StorageLink('selectedSongId') private selectedSongId: number = 0;
 
   private api?: DailyRecommendApi;
   private engine: PlayerEngine = PlayerEngine.getInstance();
@@ -41,21 +41,6 @@ struct DailyRecommendPage {
     }
   }
 
-  private getArtistNames(song: DailyRecommendSong): string {
-    if (song.ar.length === 0) {
-      return '未知歌手';
-    }
-    return song.ar.map((artist: RecommendArtist) => artist.name).join(' / ');
-  }
-
-  private getDurationText(song: DailyRecommendSong): string {
-    const totalSeconds = Math.floor(song.dt / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    const secondText = seconds < 10 ? `0${seconds}` : `${seconds}`;
-    return `${minutes}:${secondText}`;
-  }
-
   private async playSong(song: DailyRecommendSong): Promise<void> {
     try {
       await this.engine.playSong(song.id);
@@ -68,49 +53,6 @@ struct DailyRecommendPage {
     } catch (error) {
       promptAction.showToast({ message: '歌曲播放失败' });
     }
-  }
-
-  @Builder
-  private songRow(song: DailyRecommendSong, index: number) {
-    Row({ space: 12 }) {
-      Text(`${index + 1}`)
-        .fontSize(13)
-        .fontColor(this.selectedSongId === song.id ? '#1677ff' : '#999999')
-        .width(24)
-        .textAlign(TextAlign.Center)
-
-      Image(song.al.picUrl)
-        .width(48)
-        .height(48)
-        .borderRadius(6)
-        .objectFit(ImageFit.Cover)
-
-      Column({ space: 4 }) {
-        Text(song.name)
-          .fontSize(15)
-          .fontWeight(this.selectedSongId === song.id ? FontWeight.Medium : FontWeight.Regular)
-          .fontColor('#1f2937')
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-        Text(`${this.getArtistNames(song)} - ${song.al.name}`)
-          .fontSize(12)
-          .fontColor('#777777')
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-      }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
-
-      Text(this.getDurationText(song))
-        .fontSize(12)
-        .fontColor('#999999')
-    }
-    .width('100%')
-    .padding({ top: 8, bottom: 8 })
-    .onClick(async () => {
-      await this.playSong(song);
-    })
   }
 
   build() {
@@ -168,15 +110,14 @@ struct DailyRecommendPage {
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
       } else {
-        List({ space: 2 }) {
-          ForEach(this.songs, (item: DailyRecommendSong, index: number) => {
-            ListItem() {
-              this.songRow(item, index);
+        DailyRecommendSongList({
+          songs: this.songs,
+          callbacks: {
+            onSongClick: (song: DailyRecommendSong): void => {
+              void this.playSong(song);
             }
-          }, (item: DailyRecommendSong) => `${item.id}`)
-        }
-        .width('100%')
-        .layoutWeight(1)
+          }
+        })
       }
 
       MiniPlayerBar();
