@@ -84,7 +84,8 @@ export struct MiniPlayerBar {
             })
         }
 
-        Progress({ value: this.getProgressValue(), total: 1, style: ProgressStyle.Linear })
+        Progress({ value: Math.round(this.getProgressValue() * 100), total: 100, style: ProgressStyle.Linear })
+          .width('100%')
           .height(3)
           .color('#1677ff')
           .backgroundColor('#d9dde3')
