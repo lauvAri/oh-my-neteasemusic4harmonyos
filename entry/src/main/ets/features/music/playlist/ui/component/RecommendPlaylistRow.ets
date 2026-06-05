@@ -51,22 +51,40 @@ export struct RecommendPlaylistRow {
   @Builder
   private playlistCard(playlist: RecommendPlaylist) {
     Column({ space: 6 }) {
-      Stack({ alignContent: Alignment.BottomEnd }) {
+      Stack({ alignContent: Alignment.BottomStart }) {
         Image(playlist.picUrl)
           .width(120)
           .height(120)
           .borderRadius(8)
           .objectFit(ImageFit.Cover)
 
-        if (this.formatPlayCount(playlist.playcount).length > 0) {
-          Text(this.formatPlayCount(playlist.playcount))
-            .fontSize(11)
-            .fontColor(Color.White)
-            .backgroundColor('#66000000')
-            .padding({ left: 4, right: 4, top: 2, bottom: 2 })
-            .borderRadius(4)
-            .margin(6)
+        Row() {
+          if (playlist.copywriter.length > 0) {
+            Text(playlist.copywriter)
+              .fontSize(11)
+              .fontColor(Color.White)
+              .backgroundColor('#66000000')
+              .padding({ left: 4, right: 4, top: 2, bottom: 2 })
+              .borderRadius(4)
+              .margin(6)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .constraintSize({ maxWidth: 80 })
+          } else {
+            Blank()
+          }
+
+          if (this.formatPlayCount(playlist.playcount).length > 0) {
+            Text(this.formatPlayCount(playlist.playcount))
+              .fontSize(11)
+              .fontColor(Color.White)
+              .backgroundColor('#66000000')
+              .padding({ left: 4, right: 4, top: 2, bottom: 2 })
+              .borderRadius(4)
+              .margin(6)
+          }
         }
+        .width('100%')
       }
       .width(120)
       .height(120)
@@ -77,15 +95,6 @@ export struct RecommendPlaylistRow {
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .width('100%')
-
-      if (playlist.copywriter.length > 0) {
-        Text(playlist.copywriter)
-          .fontSize(11)
-          .fontColor('#999999')
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .width('100%')
-      }
     }
     .width(120)
     .alignItems(HorizontalAlign.Start)
