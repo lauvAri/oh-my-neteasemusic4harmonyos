@@ -41,9 +41,9 @@ struct DailyRecommendPage {
     }
   }
 
-  private async playSong(song: Song): Promise<void> {
+  private async playSong(song: Song, index: number): Promise<void> {
     try {
-      await this.engine.playSong(song.id);
+      await this.engine.setQueue(this.songs, index);
       router.pushUrl({
         url: 'pages/MusicPlayerPage',
         params: {
@@ -113,8 +113,8 @@ struct DailyRecommendPage {
         SongList({
           songs: this.songs,
           callbacks: {
-            onSongClick: (song: Song): void => {
-              void this.playSong(song);
+            onSongClick: (song: Song, index: number): void => {
+              void this.playSong(song, index);
             }
           }
         })

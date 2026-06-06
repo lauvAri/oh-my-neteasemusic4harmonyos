@@ -54,7 +54,8 @@ export struct MusicPlayerCard {
   }
 
   private getActiveSongId(): number {
-    return this.songId;
+    const stored = AppStorage.get<number>('selectedSongId') ?? 0;
+    return stored > 0 ? stored : this.songId;
   }
 
   private reloadCurrentSongData(): void {
@@ -313,8 +314,11 @@ export struct MusicPlayerCard {
           .width(52)
           .height(52)
           .backgroundColor(CONTROL_GRAY)
-          .onClick(() => {
-            promptAction.showToast({ message: '上一首暂未接入' });
+          .onClick(async () => {
+            const moved = await this.engine.prev();
+            if (!moved) {
+              promptAction.showToast({ message: '已是第一首' });
+            }
           })
 
         Button() {
@@ -353,8 +357,11 @@ export struct MusicPlayerCard {
           .width(52)
           .height(52)
           .backgroundColor(CONTROL_GRAY)
-          .onClick(() => {
-            promptAction.showToast({ message: '下一首暂未接入' });
+          .onClick(async () => {
+            const moved = await this.engine.next();
+            if (!moved) {
+              promptAction.showToast({ message: '已是最后一首' });
+            }
           })
       }
       .width('100%')

@@ -4,6 +4,7 @@ import common from '@ohos.app.ability.common';
 import { SongApi } from '../data/api/SongApi';
 import { SongRepositoryImpl } from '../data/repository/SongRepositoryImpl';
 import { LyricResponse } from '../domain/model/SongModels';
+import { Song } from '../domain/model/Song';
 import { GetSongDetailUseCase, SongDetailAggregate } from '../domain/usecase/GetSongDetailUseCase';
 import { GetSongPlayUrlUseCase } from '../domain/usecase/GetSongPlayUrlUseCase';
 
@@ -26,6 +27,8 @@ export class PlayerEngine {
   private currentCover: string = '';
   private metaRequestVersion: number = 0;
   private lyricRequestVersion: number = 0;
+  private playQueue: Song[] = [];
+  private currentQueueIndex: number = -1;
 
   private constructor() {
     AppStorage.setOrCreate<boolean>('miniPlayerPlaying', false);
@@ -40,6 +43,8 @@ export class PlayerEngine {
     AppStorage.setOrCreate<string>('currentSongLyric', '');
     AppStorage.setOrCreate<string>('currentSongLyricError', '');
     AppStorage.setOrCreate<boolean>('currentSongLyricLoading', false);
+    AppStorage.setOrCreate<Song[]>('playQueue', []);
+    AppStorage.setOrCreate<number>('currentQueueIndex', -1);
   }
 
   static getInstance(): PlayerEngine {
@@ -92,6 +97,11 @@ export class PlayerEngine {
     AppStorage.setOrCreate<string>('currentSongLyric', lyric);
     AppStorage.setOrCreate<string>('currentSongLyricError', errorText);
     AppStorage.setOrCreate<boolean>('currentSongLyricLoading', loading);
+  }
+
+  private setQueueState(songs: Song[], index: number): void {
+    AppStorage.setOrCreate<Song[]>('playQueue', songs);
+    AppStorage.setOrCreate<number>('currentQueueIndex', index);
   }
 
   private mapPlaybackState(): avSessionManager.PlaybackState {
@@ -170,6 +180,11 @@ export class PlayerEngine {
         if (state === 'completed') {
           const duration = this.avPlayer ? this.avPlayer.duration : 0;
           this.setProgress(duration, duration);
+          if (this.currentQueueIndex >= 0 && this.currentQueueIndex < this.playQueue.length - 1) {
+            this.next().catch((error: Error) => {
+              console.error(`auto advance failed: ${error.message}`);
+            });
+          }
         }
         this.stopProgressTimer();
       }
@@ -290,6 +305,13 @@ export class PlayerEngine {
   }
 
   async playSong(songId: number): Promise<void> {
+    if (this.playQueue.length > 0) {
+      const foundIndex = this.playQueue.findIndex((item: Song) => item.id === songId);
+      if (foundIndex >= 0 && foundIndex !== this.currentQueueIndex) {
+        this.currentQueueIndex = foundIndex;
+        AppStorage.setOrCreate<number>('currentQueueIndex', this.currentQueueIndex);
+      }
+    }
     const sameSongSelected = this.currentSongId === songId && this.currentUrl.length > 0;
     const canResumeExisting =
       sameSongSelected &&
@@ -339,6 +361,40 @@ export class PlayerEngine {
     this.setPlaying(true);
     this.startProgressTimer();
     await this.reportSessionState();
+  }
+
+  async setQueue(songs: Song[], startIndex: number): Promise<void> {
+    if (songs.length === 0) {
+      return;
+    }
+    const clampedIndex = Math.max(0, Math.min(startIndex, songs.length - 1));
+    this.playQueue = songs.slice();
+    this.currentQueueIndex = clampedIndex;
+    this.setQueueState(this.playQueue, this.currentQueueIndex);
+    await this.playSong(this.playQueue[clampedIndex].id);
+  }
+
+  async next(): Promise<boolean> {
+    if (this.currentQueueIndex < 0 || this.playQueue.length === 0) {
+      return false;
+    }
+    if (this.currentQueueIndex >= this.playQueue.length - 1) {
+      return false;
+    }
+    this.currentQueueIndex += 1;
+    this.setQueueState(this.playQueue, this.currentQueueIndex);
+    await this.playSong(this.playQueue[this.currentQueueIndex].id);
+    return true;
+  }
+
+  async prev(): Promise<boolean> {
+    if (this.currentQueueIndex <= 0 || this.playQueue.length === 0) {
+      return false;
+    }
+    this.currentQueueIndex -= 1;
+    this.setQueueState(this.playQueue, this.currentQueueIndex);
+    await this.playSong(this.playQueue[this.currentQueueIndex].id);
+    return true;
   }
 
   async pause(): Promise<void> {

@@ -73,9 +73,12 @@ struct PlaylistDetailPage {
     return count > 0 ? `${count}` : '0';
   }
 
-  private async playSong(song: Song): Promise<void> {
+  private async playSong(song: Song, index: number): Promise<void> {
+    if (this.playlist === null) {
+      return;
+    }
     try {
-      await this.engine.playSong(song.id);
+      await this.engine.setQueue(this.playlist.tracks, index);
       router.pushUrl({
         url: 'pages/MusicPlayerPage',
         params: {
@@ -204,8 +207,8 @@ struct PlaylistDetailPage {
         SongList({
           songs: this.playlist.tracks,
           callbacks: {
-            onSongClick: (song: Song): void => {
-              void this.playSong(song);
+            onSongClick: (song: Song, index: number): void => {
+              void this.playSong(song, index);
             }
           }
         })

@@ -2,7 +2,7 @@ import { Song } from '../../domain/model/Song';
 import { SongArtist } from '../../domain/model/SongModels';
 
 export interface SongListCallbacks {
-  onSongClick: (song: Song) => void;
+  onSongClick: (song: Song, index: number) => void;
 }
 
 export class SongListDataSource implements IDataSource {
@@ -108,7 +108,7 @@ export struct SongList {
     .width('100%')
     .padding({ top: 8, bottom: 8 })
     .onClick(() => {
-      this.callbacks.onSongClick(song);
+      this.callbacks.onSongClick(song, index);
     })
   }
 
