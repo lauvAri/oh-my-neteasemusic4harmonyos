@@ -177,7 +177,7 @@ struct PlaylistDetailPage {
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-            if (this.playlist.tags.length > 0) {
+            if (this.playlist.tags !== null && this.playlist.tags.length > 0) {
               Text(this.playlist.tags.join(' / '))
                 .fontSize(11)
                 .fontColor('#999999')
@@ -190,7 +190,7 @@ struct PlaylistDetailPage {
         }
         .width('100%')
 
-        if (this.playlist.description.length > 0) {
+        if (this.playlist.description !== null && this.playlist.description.length > 0) {
           Text(this.playlist.description)
             .fontSize(12)
             .fontColor('#666666')

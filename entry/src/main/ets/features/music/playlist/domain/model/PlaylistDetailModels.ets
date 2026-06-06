@@ -12,8 +12,8 @@ export interface PlaylistDetail {
   trackCount: number;
   playCount: number;
   subscribedCount: number;
-  description: string;
-  tags: string[];
+  description: string | null;
+  tags: string[] | null;
   creator: PlaylistDetailCreator;
   tracks: Song[];
 }
