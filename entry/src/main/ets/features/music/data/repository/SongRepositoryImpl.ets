@@ -1,11 +1,18 @@
 import { ApiException } from '../../../../common/error/ApiException';
 import { SongApi } from '../api/SongApi';
 import { SongRepository } from '../../domain/repository/SongRepository';
-import { SongDetail, SongDetailCachedAggregate, SongPrivilege } from '../../domain/model/SongModels';
+import {
+  LyricResponse,
+  SongDetail,
+  SongDetailCachedAggregate,
+  SongPrivilege
+} from '../../domain/model/SongModels';
 
 export class SongRepositoryImpl implements SongRepository {
+  private static detailCache: Map<number, SongDetailCachedAggregate> = new Map();
+  private static lyricCache: Map<number, LyricResponse> = new Map();
+
   private songApi: SongApi;
-  private detailCache: Map<number, SongDetailCachedAggregate> = new Map();
 
   constructor(songApi: SongApi) {
     this.songApi = songApi;
@@ -21,7 +28,7 @@ export class SongRepositoryImpl implements SongRepository {
   }
 
   async getSongDetail(songId: number): Promise<SongDetail> {
-    const cached = this.detailCache.get(songId);
+    const cached = SongRepositoryImpl.detailCache.get(songId);
     if (cached) {
       return cached.detail;
     }
@@ -30,12 +37,27 @@ export class SongRepositoryImpl implements SongRepository {
   }
 
   async getSongPrivilege(songId: number): Promise<SongPrivilege | null> {
-    const cached = this.detailCache.get(songId);
+    const cached = SongRepositoryImpl.detailCache.get(songId);
     if (cached) {
       return cached.privilege;
     }
     const loaded = await this.loadSongDetailAggregate(songId);
     return loaded.privilege;
+  }
+
+  getCachedDetail(songId: number): SongDetailCachedAggregate | null {
+    const cached = SongRepositoryImpl.detailCache.get(songId);
+    return cached ?? null;
+  }
+
+  async getSongLyric(songId: number): Promise<LyricResponse> {
+    const cached = SongRepositoryImpl.lyricCache.get(songId);
+    if (cached) {
+      return cached;
+    }
+    const response = await this.songApi.getLyric(songId);
+    SongRepositoryImpl.lyricCache.set(songId, response);
+    return response;
   }
 
   private async loadSongDetailAggregate(songId: number): Promise<SongDetailCachedAggregate> {
@@ -46,7 +68,7 @@ export class SongRepositoryImpl implements SongRepository {
     }
     const privilege = response.privileges.find((item: SongPrivilege) => item.id === songId) ?? null;
     const aggregate: SongDetailCachedAggregate = { detail, privilege };
-    this.detailCache.set(songId, aggregate);
+    SongRepositoryImpl.detailCache.set(songId, aggregate);
     return aggregate;
   }
 }

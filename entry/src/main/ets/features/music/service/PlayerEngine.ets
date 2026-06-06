@@ -273,7 +273,7 @@ export class PlayerEngine {
     const requestVersion = ++this.lyricRequestVersion;
     this.setLyricState('', '', '', true);
     try {
-      const response: LyricResponse = await new SongApi().getLyric(songId);
+      const response: LyricResponse = await this.repository.getSongLyric(songId);
       if (requestVersion !== this.lyricRequestVersion || (AppStorage.get<number>('selectedSongId') ?? 0) !== songId) {
         return;
       }

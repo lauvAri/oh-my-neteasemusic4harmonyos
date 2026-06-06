@@ -10,6 +10,15 @@ interface ParsedLyricLine {
   text: string;
 }
 
+const TEXT_PRIMARY: string = '#ffffff';
+const TEXT_SECONDARY: string = 'rgba(255, 255, 255, 0.78)';
+const TEXT_TERTIARY: string = 'rgba(255, 255, 255, 0.52)';
+const TEXT_MUTED: string = 'rgba(255, 255, 255, 0.35)';
+const ERROR_COLOR: string = '#ffb4b4';
+const CONTROL_GRAY: string = 'rgba(128, 128, 128, 0.30)';
+const PLAY_BUTTON_GRAY: string = 'rgba(128, 128, 128, 0.60)';
+const SLIDER_TRACK_GRAY: string = 'rgba(128, 128, 128, 0.30)';
+
 @Component
 export struct MusicPlayerCard {
   @Prop songId: number = 1969519579;
@@ -24,7 +33,7 @@ export struct MusicPlayerCard {
   @StorageLink('currentSongLyricLoading') private storedLyricLoading: boolean = false;
 
   @State private loading: boolean = false;
-  @State private statusText: string = '点击播放歌曲';
+  @State private statusText: string = '点击播放按钮开始';
   @State private detailLoading: boolean = true;
   @State private detailErrorText: string = '';
   @State private songDetail: SongDetail | null = null;
@@ -45,40 +54,48 @@ export struct MusicPlayerCard {
   }
 
   private getActiveSongId(): number {
-    if (this.selectedSongId > 0) {
-      return this.selectedSongId;
-    }
     return this.songId;
   }
 
   private reloadCurrentSongData(): void {
-    this.loadSongDetail();
+    this.loadSongDetail(this.songId);
     this.refreshParsedLyrics();
   }
 
-  private async loadSongDetail(): Promise<void> {
-    const targetSongId = this.getActiveSongId();
+  private async loadSongDetail(targetSongId: number): Promise<void> {
     this.showLyric = false;
     this.lastScrolledLyricIndex = -2;
+
+    const cached = this.songRepository.getCachedDetail(targetSongId);
+    if (cached !== null) {
+      this.songDetail = cached.detail;
+      this.songPrivilege = cached.privilege;
+      this.detailErrorText = '';
+      this.detailLoading = false;
+      AppStorage.setOrCreate<string>('currentDetailCover', cached.detail.al.picUrl);
+      return;
+    }
+
     this.detailLoading = true;
     this.detailErrorText = '';
     this.songDetail = null;
     this.songPrivilege = null;
     try {
       const aggregate: SongDetailAggregate = await this.getSongDetailUseCase.execute(targetSongId);
-      if (targetSongId !== this.getActiveSongId()) {
+      if (targetSongId !== this.songId && targetSongId !== this.selectedSongId) {
         return;
       }
       this.songDetail = aggregate.detail;
       this.songPrivilege = aggregate.privilege;
+      AppStorage.setOrCreate<string>('currentDetailCover', aggregate.detail.al.picUrl);
     } catch (error) {
-      if (targetSongId !== this.getActiveSongId()) {
+      if (targetSongId !== this.songId && targetSongId !== this.selectedSongId) {
         return;
       }
       const message = (error as Error).message;
       this.detailErrorText = message.length > 0 ? message : '歌曲详情加载失败';
     } finally {
-      if (targetSongId === this.getActiveSongId()) {
+      if (targetSongId === this.songId || targetSongId === this.selectedSongId) {
         this.detailLoading = false;
       }
     }
@@ -179,7 +196,8 @@ export struct MusicPlayerCard {
       return;
     }
     this.statusText = '播放中';
-    this.reloadCurrentSongData();
+    this.loadSongDetail(this.selectedSongId);
+    this.refreshParsedLyrics();
   }
 
   private getArtistNames(): string {
@@ -247,129 +265,8 @@ export struct MusicPlayerCard {
   }
 
   build() {
-    Column({ space: 12 }) {
-      if (this.detailLoading) {
-        Text('歌曲详情加载中...')
-          .fontSize(14)
-          .fontColor('#666666')
-      } else if (this.detailErrorText.length > 0) {
-        Text(this.detailErrorText)
-          .fontSize(14)
-          .fontColor('#d94841')
-
-        Button('重试详情')
-          .onClick(() => {
-            this.loadSongDetail();
-          })
-      } else if (this.songDetail) {
-        if (this.showLyric) {
-          List({ space: 8, scroller: this.lyricScroller, initialIndex: 0 }) {
-            ListItem() {
-              Column() {
-                Blank()
-              }
-              .height(72)
-              .width('100%')
-            }
-
-            if (this.storedLyricLoading) {
-              ListItem() {
-                Column({ space: 8 }) {
-                  LoadingProgress()
-                    .width(40)
-                    .height(40)
-                  Text('歌词加载中...')
-                    .fontSize(14)
-                    .fontColor('#666666')
-                }
-                .width('100%')
-                .height(220)
-                .justifyContent(FlexAlign.Center)
-              }
-            } else if (this.storedLyricErrorText.length > 0) {
-              ListItem() {
-                Text(this.storedLyricErrorText)
-                  .fontSize(14)
-                  .fontColor('#d94841')
-                  .width('100%')
-                  .textAlign(TextAlign.Center)
-              }
-            } else {
-              ForEach(this.lyricLines, (line: ParsedLyricLine, index: number) => {
-                ListItem() {
-                  Text(line.text)
-                    .fontSize(this.isActiveLyricLine(index) ? 18 : 15)
-                    .fontWeight(this.isActiveLyricLine(index) ? FontWeight.Medium : FontWeight.Regular)
-                    .fontColor(this.isActiveLyricLine(index) ? '#1677ff' : '#666666')
-                    .lineHeight(30)
-                    .textAlign(TextAlign.Center)
-                    .width('100%')
-                    .padding({ left: 12, right: 12 })
-                }
-              }, (line: ParsedLyricLine, index: number) => `${index}-${line.timeMs}`)
-            }
-
-            ListItem() {
-              Column() {
-                Blank()
-              }
-              .height(72)
-              .width('100%')
-            }
-          }
-          .width(260)
-          .height(336)
-          .padding(14)
-          .borderRadius(16)
-          .scrollBar(BarState.Off)
-          .onClick(() => {
-            this.showLyric = false;
-            this.lastScrolledLyricIndex = -2;
-          })
-        } else {
-          Image(this.songDetail.al.picUrl)
-            .width(220)
-            .height(220)
-            .borderRadius(16)
-            .objectFit(ImageFit.Cover)
-            .onClick(() => {
-              this.showLyric = true;
-              this.lastScrolledLyricIndex = -2;
-            })
-
-          Text(this.songDetail.name)
-            .fontSize(22)
-            .fontWeight(FontWeight.Bold)
-
-          if (this.getAliasText().length > 0) {
-            Text(this.getAliasText())
-              .fontSize(13)
-              .fontColor('#8a8a8a')
-          }
-
-          Text(this.getArtistNames())
-            .fontSize(14)
-            .fontColor('#555555')
-
-          Text(`专辑：${this.songDetail.al.name}`)
-            .fontSize(13)
-            .fontColor('#666666')
-
-          Row({ space: 12 }) {
-            Text(`时长：${this.getDurationText()}`)
-              .fontSize(12)
-              .fontColor('#666666')
-
-            Text(`音质上限：${this.getQualityText()}`)
-              .fontSize(12)
-              .fontColor('#666666')
-          }
-        }
-      }
-
-      Text(this.statusText)
-        .fontSize(13)
-        .fontColor('#666666')
+    Column() {
+      this.MediaStage()
 
       Slider({
         value: this.currentMs,
@@ -378,9 +275,10 @@ export struct MusicPlayerCard {
         step: 1000,
         style: SliderStyle.OutSet
       })
-        .blockColor('#1677ff')
-        .trackColor('#d9dde3')
-        .selectedColor('#1677ff')
+        .blockColor(TEXT_PRIMARY)
+        .trackColor(SLIDER_TRACK_GRAY)
+        .selectedColor(TEXT_PRIMARY)
+        .width('100%')
         .onChange((value: number, mode: SliderChangeMode) => {
           this.sliderValue = value;
           if (mode === SliderChangeMode.End && this.durationMs > 0) {
@@ -393,46 +291,49 @@ export struct MusicPlayerCard {
 
       Row() {
         Text(this.formatTime(this.currentMs))
-          .fontSize(12)
-          .fontColor('#666666')
-
+          .fontSize(11)
+          .fontColor(TEXT_TERTIARY)
         Blank()
-
         Text(this.formatTime(this.durationMs))
-          .fontSize(12)
-          .fontColor('#666666')
+          .fontSize(11)
+          .fontColor(TEXT_TERTIARY)
       }
       .width('100%')
+      .padding({ left: 2, right: 2 })
+      .margin({ top: 4 })
 
-      Row({ space: 20 }) {
+      Row({ space: 28 }) {
         Button() {
           Image($r('app.media.ic_skip_previous'))
-            .width(18)
-            .height(18)
+            .width(26)
+            .height(26)
+            .fillColor(TEXT_PRIMARY)
         }
           .type(ButtonType.Circle)
-          .width(40)
-          .height(40)
-          .backgroundColor('#eceff3')
+          .width(52)
+          .height(52)
+          .backgroundColor(CONTROL_GRAY)
           .onClick(() => {
             promptAction.showToast({ message: '上一首暂未接入' });
           })
 
         Button() {
           if (this.loading) {
-            Text('...')
-              .fontSize(14)
-              .fontColor('#1f2937')
+            LoadingProgress()
+              .width(28)
+              .height(28)
+              .color(TEXT_PRIMARY)
           } else {
             Image(this.playing ? $r('app.media.ic_pause') : $r('app.media.ic_play'))
-              .width(16)
-              .height(16)
+              .width(28)
+              .height(28)
+              .fillColor(TEXT_PRIMARY)
           }
         }
           .type(ButtonType.Circle)
-          .width(44)
-          .height(44)
-          .backgroundColor('#e5e7eb')
+          .width(68)
+          .height(68)
+          .backgroundColor(PLAY_BUTTON_GRAY)
           .enabled(!this.loading)
           .onClick(async () => {
             if (this.playing) {
@@ -444,22 +345,224 @@ export struct MusicPlayerCard {
 
         Button() {
           Image($r('app.media.ic_skip_next'))
-            .width(18)
-            .height(18)
+            .width(26)
+            .height(26)
+            .fillColor(TEXT_PRIMARY)
         }
           .type(ButtonType.Circle)
-          .width(40)
-          .height(40)
-          .backgroundColor('#eceff3')
+          .width(52)
+          .height(52)
+          .backgroundColor(CONTROL_GRAY)
           .onClick(() => {
             promptAction.showToast({ message: '下一首暂未接入' });
           })
       }
+      .width('100%')
+      .justifyContent(FlexAlign.Center)
+      .margin({ top: 14 })
+
+      if (this.statusText.length > 0) {
+        Text(this.statusText)
+          .fontSize(11)
+          .fontColor(TEXT_TERTIARY)
+          .textAlign(TextAlign.Center)
+          .margin({ top: 8 })
+      }
+
+      if (this.songDetail) {
+        Row({ space: 12 }) {
+          Text(`时长 ${this.getDurationText()}`)
+            .fontSize(11)
+            .fontColor(TEXT_MUTED)
+          Text(`音质上限 ${this.getQualityText()}`)
+            .fontSize(11)
+            .fontColor(TEXT_MUTED)
+        }
+        .margin({ top: 4 })
+        .justifyContent(FlexAlign.Center)
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .alignItems(HorizontalAlign.Center)
+  }
+
+  @Builder
+  private MediaStage() {
+    Stack({ alignContent: Alignment.TopStart }) {
+      if (this.detailLoading) {
+        Stack({ alignContent: Alignment.Center }) {
+          Column({ space: 12 }) {
+            LoadingProgress()
+              .width(36)
+              .height(36)
+              .color(TEXT_PRIMARY)
+            Text('歌曲详情加载中...')
+              .fontSize(13)
+              .fontColor(TEXT_SECONDARY)
+          }
+        }
+        .width('100%')
+        .height('100%')
+      } else if (this.detailErrorText.length > 0) {
+        Stack({ alignContent: Alignment.Center }) {
+          Column({ space: 14 }) {
+            Text(this.detailErrorText)
+              .fontSize(14)
+              .fontColor(ERROR_COLOR)
+              .textAlign(TextAlign.Center)
+            Button('重试详情')
+              .fontSize(13)
+              .fontColor(TEXT_PRIMARY)
+              .height(36)
+              .padding({ left: 18, right: 18 })
+              .backgroundColor(CONTROL_GRAY)
+              .onClick(() => {
+                this.loadSongDetail(this.songId);
+              })
+          }
+          .alignItems(HorizontalAlign.Center)
+        }
+        .width('100%')
+        .height('100%')
+      } else if (this.songDetail) {
+        if (this.showLyric) {
+          Stack({ alignContent: Alignment.Center }) {
+            this.LyricsView()
+          }
+          .width('100%')
+          .height('100%')
+        } else {
+          this.CoverView()
+        }
+      }
+    }
+    .layoutWeight(1)
+    .width('100%')
+  }
+
+  @Builder
+  private CoverView() {
+    Column({ space: 18 }) {
+      Image(this.songDetail ? this.songDetail.al.picUrl : '')
+        .width('86%')
+        .aspectRatio(1)
+        .borderRadius(28)
+        .objectFit(ImageFit.Cover)
+        .shadow(ShadowStyle.OUTER_DEFAULT_MD)
+        .onClick(() => {
+          this.showLyric = true;
+          this.lastScrolledLyricIndex = -2;
+        })
+
+      Column({ space: 4 }) {
+        Text(this.songDetail ? this.songDetail.name : '')
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(TEXT_PRIMARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .width('100%')
+          .textAlign(TextAlign.Center)
+
+        if (this.getAliasText().length > 0) {
+          Text(this.getAliasText())
+            .fontSize(12)
+            .fontColor(TEXT_MUTED)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .width('100%')
+            .textAlign(TextAlign.Center)
+        }
+
+        Text(this.getArtistNames())
+          .fontSize(14)
+          .fontColor(TEXT_SECONDARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .width('100%')
+          .textAlign(TextAlign.Center)
+          .margin({ top: 2 })
+
+        Text(`专辑：${this.songDetail ? this.songDetail.al.name : ''}`)
+          .fontSize(12)
+          .fontColor(TEXT_TERTIARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .width('100%')
+          .textAlign(TextAlign.Center)
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Center)
     }
     .width('100%')
     .alignItems(HorizontalAlign.Center)
-    .padding(16)
-    .backgroundColor('#f7f8fa')
-    .borderRadius(16)
+    .padding({ top: 4 })
+  }
+
+  @Builder
+  private LyricsView() {
+    List({ space: 14, scroller: this.lyricScroller, initialIndex: 0 }) {
+      ListItem() {
+        Column() {
+          Blank()
+        }
+        .height(120)
+        .width('100%')
+      }
+
+      if (this.storedLyricLoading) {
+        ListItem() {
+          Column({ space: 10 }) {
+            LoadingProgress()
+              .width(36)
+              .height(36)
+              .color(TEXT_PRIMARY)
+            Text('歌词加载中...')
+              .fontSize(13)
+              .fontColor(TEXT_SECONDARY)
+          }
+          .width('100%')
+          .height(220)
+          .justifyContent(FlexAlign.Center)
+        }
+      } else if (this.storedLyricErrorText.length > 0) {
+        ListItem() {
+          Text(this.storedLyricErrorText)
+            .fontSize(14)
+            .fontColor(ERROR_COLOR)
+            .width('100%')
+            .textAlign(TextAlign.Center)
+        }
+      } else {
+        ForEach(this.lyricLines, (line: ParsedLyricLine, index: number) => {
+          ListItem() {
+            Text(line.text)
+              .fontSize(this.isActiveLyricLine(index) ? 19 : 15)
+              .fontWeight(this.isActiveLyricLine(index) ? FontWeight.Medium : FontWeight.Regular)
+              .fontColor(this.isActiveLyricLine(index) ? TEXT_PRIMARY : TEXT_TERTIARY)
+              .lineHeight(this.isActiveLyricLine(index) ? 30 : 26)
+              .textAlign(TextAlign.Center)
+              .width('100%')
+              .padding({ left: 12, right: 12 })
+          }
+        }, (line: ParsedLyricLine, index: number) => `${index}-${line.timeMs}`)
+      }
+
+      ListItem() {
+        Column() {
+          Blank()
+        }
+        .height(160)
+        .width('100%')
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .scrollBar(BarState.Off)
+    .onClick(() => {
+      this.showLyric = false;
+      this.lastScrolledLyricIndex = -2;
+    })
   }
 }
