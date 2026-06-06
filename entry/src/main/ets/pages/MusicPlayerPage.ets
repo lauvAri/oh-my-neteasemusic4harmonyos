@@ -12,6 +12,7 @@ const BG_BOTTOM_COLOR: string = '#0b1220';
 @Component
 struct MusicPlayerPage {
   @State private songId: number = 1969519579;
+  @StorageLink('miniPlayerTitle') private miniPlayerTitle: string = '未选择歌曲';
 
   aboutToAppear(): void {
     const params = router.getParams() as Record<string, Object>;
@@ -74,15 +75,15 @@ struct MusicPlayerPage {
           router.back();
         })
 
-      Blank()
-
-      Text('正在播放')
-        .fontSize(13)
+      Text(this.miniPlayerTitle)
+        .fontSize(14)
         .fontColor('rgba(255, 255, 255, 0.85)')
         .fontWeight(FontWeight.Medium)
-        .margin({ right: 8 })
-
-      Blank()
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .layoutWeight(1)
+        .textAlign(TextAlign.Center)
+        .margin({ left: 12, right: 12 })
     }
     .width('100%')
     .padding({
