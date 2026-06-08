@@ -38,7 +38,7 @@ struct MainTabs {
   }
 
   build() {
-    Column({ space: 8 }) {
+    Stack({ alignContent: Alignment.Bottom }) {
       Tabs({
         barPosition: BarPosition.End,
         index: this.currentIndex,
@@ -64,19 +64,23 @@ struct MainTabs {
       .vertical(false)
       .barMode(BarMode.Fixed)
       .barHeight(0)
-      .layoutWeight(1)
       .width('100%')
+      .height('100%')
       .onChange((index: number) => {
         this.currentIndex = index;
       })
 
-      MiniPlayerBar();
+      Column({ space: 8 }) {
+        MiniPlayerBar();
 
-      Row({ space: 8 }) {
-        this.tabButton('首页', 0);
-        this.tabButton('我的', 1);
+        Row({ space: 8 }) {
+          this.tabButton('首页', 0);
+          this.tabButton('我的', 1);
+        }
+        .width('100%')
       }
       .width('100%')
+      .backgroundColor('#ffffff')
     }
     .width('100%')
     .height('100%')
