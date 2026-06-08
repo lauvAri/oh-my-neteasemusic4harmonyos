@@ -8,9 +8,26 @@ export struct HomePage {
   build() {
     Scroll() {
       Column({ space: 16 }) {
-        Text('首页')
-          .fontSize(26)
-          .fontWeight(FontWeight.Medium)
+        Row({ space: 12 }) {
+          Text('首页')
+            .fontSize(26)
+            .fontWeight(FontWeight.Medium)
+            .layoutWeight(1)
+
+          Button() {
+            Image($r('app.media.ic_search'))
+              .width(18)
+              .height(18)
+          }
+          .type(ButtonType.Circle)
+          .width(36)
+          .height(36)
+          .backgroundColor('#eceff3')
+          .onClick(() => {
+            router.pushUrl({ url: 'pages/SearchPage' });
+          })
+        }
+        .width('100%')
 
         HomeBanner();
 
