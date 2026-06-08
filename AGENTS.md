@@ -1,42 +1,44 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
+This is a HarmonyOS ArkTS app. Main module code is under `entry/`.
 
-This is a HarmonyOS ArkTS application. The entry module lives in `entry/`.
-
-- `entry/src/main/ets/pages/`: top-level pages such as `Index.ets`, `MainTabs.ets`, `HomePage.ets`, and `MinePage.ets`.
-- `entry/src/main/ets/features/`: feature code grouped by domain, for example `auth`, `banner`, and `music`.
-- `entry/src/main/ets/common/`: shared utilities, including network, storage, and error handling.
-- `entry/src/main/resources/`: app resources, media, profiles, and localized elements.
-- `docs/`: API notes and integration documentation.
-- `AppScope/`, `build-profile.json5`, `hvigorfile.ts`, and `oh-package.json5`: HarmonyOS project and build configuration.
+- `entry/src/main/ets/pages/`: top-level pages (`Index.ets`, `MainTabs.ets`, `MusicPlayerPage.ets`)
+- `entry/src/main/ets/features/`: domain features (for example `auth`, `banner`, `music`, `search`)
+- `entry/src/main/ets/common/`: shared networking, storage, errors, and UI helpers
+- `entry/src/main/resources/`: colors, media assets, profiles, and localized strings
+- `docs/`: API notes and integration references
+- `AppScope/`, `hvigorfile.ts`, `build-profile.json5`, `oh-package.json5`: app/build config
 
 ## Build, Test, and Development Commands
+Use DevEco Studio toolchain for builds:
 
-Use the DevEco Studio bundled Node and hvigor wrapper. If DevEco Studio is installed elsewhere, update the paths.
-
-```bash
-"C:\Program Files\Huawei\DevEco Studio\tools\node\node.exe" "C:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.js" --mode module -p module=entry@default -p product=default -p requiredDeviceType=phone assembleHap --analyze=normal --parallel --incremental --daemon
-```
-
-This builds the `entry` HAP and runs ArkTS compilation. Test dependencies include `@ohos/hypium` and `@ohos/hamock`, but no dedicated test command or test directory is currently defined.
+- Build HAP:
+  `"C:\Program Files\Huawei\DevEco Studio\tools\node\node.exe" "C:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.js" --mode module -p module=entry@default -p product=default -p requiredDeviceType=phone assembleHap --analyze=normal --parallel --incremental --daemon`
+- Notes:
+  this repository currently has `@ohos/hypium` and `@ohos/hamock` dependencies, but no dedicated test command is defined.
 
 ## Coding Style & Naming Conventions
-
-Write ArkTS with clear, explicit types. Avoid structural typing and nested object literal type declarations; define named `interface`s instead. Use PascalCase for components, classes, and exported interfaces, and camelCase for fields, methods, and local variables.
-
-Keep feature-specific code under `features/<domain>/` and shared code under `common/`. Prefer existing helpers such as `HttpClient`, `SessionStore`, and `ApiException` before adding new utilities.
+- Write strict ArkTS with explicit types; define named `interface`s instead of nested structural types.
+- Use `PascalCase` for components/classes/interfaces; `camelCase` for fields/methods/locals.
+- Keep feature logic in `features/<domain>/`, shared logic in `common/`.
+- Prefer existing utilities (`HttpClient`, `SessionStore`, `ApiException`) before adding new helpers.
 
 ## Testing Guidelines
-
-When adding logic-heavy code, add Hypium tests where practical and keep test names behavior-focused, for example `AuthServiceStoresQrCookie`. For UI changes, verify at least the affected navigation path and run the HAP build command before handing off.
+- Test framework dependencies include `@ohos/hypium` and `@ohos/hamock`.
+- For logic-heavy changes, add behavior-focused tests (for example `AuthServiceStoresQrCookie`).
+- For UI changes, verify the affected navigation flow and run a HAP build before submitting.
 
 ## Commit & Pull Request Guidelines
-
-Git history is not available in this workspace, so use concise conventional-style commits such as `feat: add qr login` or `fix: handle account loading error`.
-
-Pull requests should include the user-visible change, affected files or features, validation performed, and screenshots for UI changes. Link related issues or docs when the change depends on an API contract.
+- Use concise conventional commits, e.g. `feat: add playlist detail route fix`, `fix: hide tabs on subpage`.
+- PRs should include:
+  - user-visible behavior change
+  - affected modules/files
+  - validation performed (build/tests)
+  - screenshots for UI changes
+  - linked issue/doc when API contracts are involved
 
 ## Security & Configuration Tips
-
-Do not commit real cookies, tokens, or account identifiers. Keep backend endpoints in `common/network/ApiConfig.ets` or documented configuration files, and treat `local.properties` as machine-specific.
+- Never commit real cookies, tokens, or account identifiers.
+- Keep endpoint config in `entry/src/main/ets/common/network/ApiConfig.ets`.
+- Treat `local.properties` as machine-specific and non-portable.
