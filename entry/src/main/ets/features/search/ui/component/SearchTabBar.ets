@@ -10,8 +10,8 @@ export struct SearchTabBar {
       ForEach(SEARCH_TYPE_OPTIONS, (option: SearchTypeOption) => {
         Text(option.label)
           .fontSize(14)
-          .fontColor(this.activeTab === option.type ? Color.White : '#1f2937')
-          .backgroundColor(this.activeTab === option.type ? '#1677ff' : '#f2f3f5')
+          .fontColor(this.activeTab === option.type ? $r('app.color.text_on_dark_primary') : $r('app.color.text_primary'))
+          .backgroundColor(this.activeTab === option.type ? $r('app.color.text_brand') : $r('app.color.surface_input'))
           .padding({ left: 14, right: 14, top: 6, bottom: 6 })
           .borderRadius(16)
           .onClick(() => {

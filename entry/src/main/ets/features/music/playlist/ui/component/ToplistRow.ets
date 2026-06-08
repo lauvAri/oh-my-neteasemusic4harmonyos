@@ -1,5 +1,5 @@
 import common from '@ohos.app.ability.common';
-import { router, promptAction } from '@kit.ArkUI';
+import { promptAction } from '@kit.ArkUI';
 import { Toplist, ArtistToplist } from '../../domain/model/ToplistModels';
 import { ToplistApi } from '../../data/api/ToplistApi';
 
@@ -17,6 +17,7 @@ export struct ToplistRow {
   @State private items: ToplistCardItem[] = [];
   @State private loading: boolean = true;
   @State private errorMessage: string = '';
+  @Consume('pathStack') pathStack: NavPathStack;
 
   private api?: ToplistApi;
 
@@ -73,12 +74,11 @@ export struct ToplistRow {
 
   private handleItemClick(item: ToplistCardItem): void {
     if (item.kind === 'playlist') {
-      router.pushUrl({
-        url: 'pages/PlaylistDetailPage',
-        params: {
-          playlistId: item.playlistId
-        }
+      this.pathStack.pushPath({
+        name: 'PlaylistDetailPage',
+        param: item.playlistId
       });
+      AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
     } else {
       promptAction.showToast({ message: '歌手榜暂未支持' });
     }
@@ -112,7 +112,7 @@ export struct ToplistRow {
 
       Text(item.name)
         .fontSize(13)
-        .fontColor('#1f2937')
+        .fontColor($r('app.color.text_primary'))
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .width('100%')
@@ -129,7 +129,7 @@ export struct ToplistRow {
       Text('排行榜')
         .fontSize(18)
         .fontWeight(FontWeight.Medium)
-        .fontColor('#1f2937')
+        .fontColor($r('app.color.text_primary'))
         .width('100%')
 
       if (this.loading) {
@@ -139,7 +139,7 @@ export struct ToplistRow {
             .height(28)
           Text('排行榜加载中...')
             .fontSize(13)
-            .fontColor('#666666')
+            .fontColor($r('app.color.text_secondary'))
         }
         .width('100%')
         .height(140)
@@ -148,7 +148,7 @@ export struct ToplistRow {
         Column({ space: 8 }) {
           Text(this.errorMessage)
             .fontSize(13)
-            .fontColor('#d94841')
+            .fontColor($r('app.color.text_danger'))
           Button('重试')
             .onClick(() => {
               this.loadToplists();
@@ -160,7 +160,7 @@ export struct ToplistRow {
       } else if (this.items.length === 0) {
         Text('暂无排行榜')
           .fontSize(13)
-          .fontColor('#666666')
+          .fontColor($r('app.color.text_secondary'))
           .width('100%')
           .height(140)
           .textAlign(TextAlign.Center)

@@ -2,9 +2,6 @@
   "src": [
     "pages/Index",
     "pages/MainTabs",
-    "pages/DailyRecommendPage",
-    "pages/PlaylistDetailPage",
-    "pages/MusicPlayerPage",
-    "pages/SearchPage"
+    "pages/MusicPlayerPage"
   ]
 }

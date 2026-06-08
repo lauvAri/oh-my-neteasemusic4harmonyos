@@ -1,10 +1,13 @@
 import { HomeBanner } from '../features/banner/ui/component/HomeBanner';
 import { RecommendPlaylistRow } from '../features/music/playlist/ui/component/RecommendPlaylistRow';
 import { ToplistRow } from '../features/music/playlist/ui/component/ToplistRow';
-import { router } from '@kit.ArkUI';
+import { hilog } from '@kit.PerformanceAnalysisKit';
+
+const DOMAIN = 0x0000;
 
 @Component
 export struct HomePage {
+  @Consume('pathStack') pathStack: NavPathStack;
   build() {
     Scroll() {
       Column({ space: 16 }) {
@@ -18,13 +21,16 @@ export struct HomePage {
             Image($r('app.media.ic_search'))
               .width(18)
               .height(18)
+              .fillColor($r('app.color.icon_primary'))
           }
           .type(ButtonType.Circle)
           .width(36)
           .height(36)
-          .backgroundColor('#eceff3')
+          .backgroundColor($r('app.color.surface_subtle'))
           .onClick(() => {
-            router.pushUrl({ url: 'pages/SearchPage' });
+            hilog.info(DOMAIN, 'NavRoute', 'pushPath: SearchPage');
+            this.pathStack.pushPath({ name: 'SearchPage' });
+            AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
           })
         }
         .width('100%')
@@ -38,32 +44,36 @@ export struct HomePage {
             Text('每日推荐歌曲')
               .fontSize(18)
               .fontWeight(FontWeight.Medium)
-              .fontColor('#1f2937')
+              .fontColor($r('app.color.text_primary'))
 
             Text('根据你的听歌偏好更新')
               .fontSize(13)
-              .fontColor('#666666')
+              .fontColor($r('app.color.text_secondary'))
           }
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
 
           Text('进入')
             .fontSize(14)
-            .fontColor('#1677ff')
+            .fontColor($r('app.color.text_brand'))
         }
         .width('100%')
         .padding(14)
-        .backgroundColor('#f7f8fa')
+        .backgroundColor($r('app.color.surface_card'))
         .borderRadius(8)
         .onClick(() => {
-          router.pushUrl({ url: 'pages/DailyRecommendPage' });
+          hilog.info(DOMAIN, 'NavRoute', 'pushPath: DailyRecommendPage');
+          this.pathStack.pushPath({ name: 'DailyRecommendPage' });
+          AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
         })
 
         ToplistRow();
+
+        Blank().height(80);
       }
       .width('100%')
       .alignItems(HorizontalAlign.Start)
-      .padding({ left: 16, right: 16, top: 16, bottom: 120 })
+      .padding({ left: 16, right: 16, top: 16, bottom: 16 })
     }
     .width('100%')
     .height('100%')

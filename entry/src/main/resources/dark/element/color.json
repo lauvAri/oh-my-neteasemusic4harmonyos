@@ -2,7 +2,123 @@
   "color": [
     {
       "name": "start_window_background",
-      "value": "#000000"
+      "value": "#1A1A1A"
+    },
+    {
+      "name": "glass_tint_light",
+      "value": "#22000000"
+    },
+    {
+      "name": "glass_tint_dark",
+      "value": "#22FFFFFF"
+    },
+    {
+      "name": "glass_border_light",
+      "value": "#22FFFFFF"
+    },
+    {
+      "name": "glass_border_dark",
+      "value": "#22FFFFFF"
+    },
+    {
+      "name": "glass_highlight_light",
+      "value": "#11FFFFFF"
+    },
+    {
+      "name": "glass_highlight_dark",
+      "value": "#11FFFFFF"
+    },
+    {
+      "name": "text_primary",
+      "value": "#E5E7EB"
+    },
+    {
+      "name": "text_secondary",
+      "value": "#A1A1AA"
+    },
+    {
+      "name": "text_tertiary",
+      "value": "#71717A"
+    },
+    {
+      "name": "text_quaternary",
+      "value": "#9CA3AF"
+    },
+    {
+      "name": "text_hint",
+      "value": "#9CA3AF"
+    },
+    {
+      "name": "text_on_dark_primary",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "text_on_dark_secondary",
+      "value": "#F5F5F5"
+    },
+    {
+      "name": "text_brand",
+      "value": "#3B82F6"
+    },
+    {
+      "name": "text_brand_inactive",
+      "value": "#A1A1AA"
+    },
+    {
+      "name": "text_danger",
+      "value": "#F87171"
+    },
+    {
+      "name": "text_danger_strong",
+      "value": "#FB923C"
+    },
+    {
+      "name": "text_muted_placeholder",
+      "value": "#71717A"
+    },
+    {
+      "name": "surface_subtle",
+      "value": "#27272A"
+    },
+    {
+      "name": "surface_input",
+      "value": "#27272A"
+    },
+    {
+      "name": "surface_card",
+      "value": "#1F1F22"
+    },
+    {
+      "name": "surface_info",
+      "value": "#1F1F22"
+    },
+    {
+      "name": "surface_banner_fallback",
+      "value": "#27272A"
+    },
+    {
+      "name": "surface_danger_subtle",
+      "value": "#3F1D1A"
+    },
+    {
+      "name": "surface_brand_tint",
+      "value": "#1E3A8A"
+    },
+    {
+      "name": "divider_subtle",
+      "value": "#27272A"
+    },
+    {
+      "name": "border_subtle",
+      "value": "#3F3F46"
+    },
+    {
+      "name": "progress_track_translucent",
+      "value": "#22FFFFFF"
+    },
+    {
+      "name": "icon_primary",
+      "value": "#E5E7EB"
     }
   ]
 }

@@ -3,6 +3,122 @@
     {
       "name": "start_window_background",
       "value": "#FFFFFF"
+    },
+    {
+      "name": "glass_tint_light",
+      "value": "#14FFFFFF"
+    },
+    {
+      "name": "glass_tint_dark",
+      "value": "#22000000"
+    },
+    {
+      "name": "glass_border_light",
+      "value": "#33FFFFFF"
+    },
+    {
+      "name": "glass_border_dark",
+      "value": "#22FFFFFF"
+    },
+    {
+      "name": "glass_highlight_light",
+      "value": "#22FFFFFF"
+    },
+    {
+      "name": "glass_highlight_dark",
+      "value": "#11FFFFFF"
+    },
+    {
+      "name": "text_primary",
+      "value": "#1f2937"
+    },
+    {
+      "name": "text_secondary",
+      "value": "#666666"
+    },
+    {
+      "name": "text_tertiary",
+      "value": "#999999"
+    },
+    {
+      "name": "text_quaternary",
+      "value": "#777777"
+    },
+    {
+      "name": "text_hint",
+      "value": "#555555"
+    },
+    {
+      "name": "text_on_dark_primary",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "text_on_dark_secondary",
+      "value": "#F5F5F5"
+    },
+    {
+      "name": "text_brand",
+      "value": "#1677ff"
+    },
+    {
+      "name": "text_brand_inactive",
+      "value": "#666666"
+    },
+    {
+      "name": "text_danger",
+      "value": "#d94841"
+    },
+    {
+      "name": "text_danger_strong",
+      "value": "#d4380d"
+    },
+    {
+      "name": "text_muted_placeholder",
+      "value": "#8a8f98"
+    },
+    {
+      "name": "surface_subtle",
+      "value": "#eceff3"
+    },
+    {
+      "name": "surface_input",
+      "value": "#f2f3f5"
+    },
+    {
+      "name": "surface_card",
+      "value": "#f7f8fa"
+    },
+    {
+      "name": "surface_info",
+      "value": "#f8f9fa"
+    },
+    {
+      "name": "surface_banner_fallback",
+      "value": "#f1f3f5"
+    },
+    {
+      "name": "surface_danger_subtle",
+      "value": "#fff1e8"
+    },
+    {
+      "name": "surface_brand_tint",
+      "value": "#e8f1ff"
+    },
+    {
+      "name": "divider_subtle",
+      "value": "#f0f0f0"
+    },
+    {
+      "name": "border_subtle",
+      "value": "#e5e7eb"
+    },
+    {
+      "name": "progress_track_translucent",
+      "value": "#22FFFFFF"
+    },
+    {
+      "name": "icon_primary",
+      "value": "#1F2937"
     }
   ]
 }

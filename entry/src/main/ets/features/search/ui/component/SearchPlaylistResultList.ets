@@ -1,4 +1,3 @@
-import { router } from '@kit.ArkUI';
 import { SearchPlaylistItem } from '../../domain/model/SearchModels';
 
 @Component
@@ -9,6 +8,7 @@ export struct SearchPlaylistResultList {
   @Prop isLoading: boolean = false;
   @Prop errorMessage: string = '';
   onLoadMore: () => void = () => {};
+  @Consume('pathStack') pathStack: NavPathStack;
 
   private formatPlayCount(count: number): string {
     if (count >= 100000000) {
@@ -23,12 +23,11 @@ export struct SearchPlaylistResultList {
   }
 
   private handleItemClick(item: SearchPlaylistItem): void {
-    router.pushUrl({
-      url: 'pages/PlaylistDetailPage',
-      params: {
-        playlistId: item.id
-      }
+    this.pathStack.pushPath({
+      name: 'PlaylistDetailPage',
+      param: item.id
     });
+    AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
   }
 
   @Builder
@@ -43,20 +42,20 @@ export struct SearchPlaylistResultList {
       Column({ space: 4 }) {
         Text(item.name)
           .fontSize(15)
-          .fontColor('#1f2937')
+          .fontColor($r('app.color.text_primary'))
           .fontWeight(FontWeight.Medium)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
         Text(item.creator.nickname)
           .fontSize(12)
-          .fontColor('#666666')
+          .fontColor($r('app.color.text_secondary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
         Text(`${this.formatPlayCount(item.playCount)}播放 · ${item.trackCount}首`)
           .fontSize(11)
-          .fontColor('#999999')
+          .fontColor($r('app.color.text_tertiary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
@@ -79,7 +78,7 @@ export struct SearchPlaylistResultList {
           .height(16)
         Text('加载中...')
           .fontSize(12)
-          .fontColor('#999999')
+          .fontColor($r('app.color.text_tertiary'))
       }
       .width('100%')
       .height(48)
@@ -88,15 +87,15 @@ export struct SearchPlaylistResultList {
       Button('加载更多')
         .width('100%')
         .height(40)
-        .backgroundColor('#f2f3f5')
-        .fontColor('#1677ff')
+        .backgroundColor($r('app.color.surface_input'))
+        .fontColor($r('app.color.text_brand'))
         .onClick(() => {
           this.onLoadMore();
         })
     } else {
       Text('没有更多了')
         .fontSize(12)
-        .fontColor('#999999')
+        .fontColor($r('app.color.text_tertiary'))
         .width('100%')
         .height(48)
         .textAlign(TextAlign.Center)
@@ -111,7 +110,7 @@ export struct SearchPlaylistResultList {
           .height(28)
         Text('搜索中...')
           .fontSize(13)
-          .fontColor('#666666')
+          .fontColor($r('app.color.text_secondary'))
       }
       .width('100%')
       .layoutWeight(1)
@@ -120,7 +119,7 @@ export struct SearchPlaylistResultList {
       Column({ space: 8 }) {
         Text(this.errorMessage)
           .fontSize(13)
-          .fontColor('#d94841')
+          .fontColor($r('app.color.text_danger'))
       }
       .width('100%')
       .layoutWeight(1)
@@ -129,7 +128,7 @@ export struct SearchPlaylistResultList {
       Column() {
         Text('暂无搜索结果')
           .fontSize(13)
-          .fontColor('#666666')
+          .fontColor($r('app.color.text_secondary'))
       }
       .width('100%')
       .layoutWeight(1)

@@ -39,19 +39,19 @@ export struct SearchAlbumResultList {
       Column({ space: 4 }) {
         Text(album.name)
           .fontSize(15)
-          .fontColor('#1f2937')
+          .fontColor($r('app.color.text_primary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
         Text(this.getArtistName(album))
           .fontSize(12)
-          .fontColor('#666666')
+          .fontColor($r('app.color.text_secondary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
         Text(`${this.formatYear(album.publishTime)} · ${album.size}首`)
           .fontSize(11)
-          .fontColor('#999999')
+          .fontColor($r('app.color.text_tertiary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
@@ -71,7 +71,7 @@ export struct SearchAlbumResultList {
           .height(16)
         Text('加载中...')
           .fontSize(12)
-          .fontColor('#999999')
+          .fontColor($r('app.color.text_tertiary'))
       }
       .width('100%')
       .height(48)
@@ -80,15 +80,15 @@ export struct SearchAlbumResultList {
       Button('加载更多')
         .width('100%')
         .height(40)
-        .backgroundColor('#f2f3f5')
-        .fontColor('#1677ff')
+        .backgroundColor($r('app.color.surface_input'))
+        .fontColor($r('app.color.text_brand'))
         .onClick(() => {
           this.onLoadMore();
         })
     } else {
       Text('没有更多了')
         .fontSize(12)
-        .fontColor('#999999')
+        .fontColor($r('app.color.text_tertiary'))
         .width('100%')
         .height(48)
         .textAlign(TextAlign.Center)
@@ -103,7 +103,7 @@ export struct SearchAlbumResultList {
           .height(28)
         Text('搜索中...')
           .fontSize(13)
-          .fontColor('#666666')
+          .fontColor($r('app.color.text_secondary'))
       }
       .width('100%')
       .layoutWeight(1)
@@ -112,7 +112,7 @@ export struct SearchAlbumResultList {
       Column({ space: 8 }) {
         Text(this.errorMessage)
           .fontSize(13)
-          .fontColor('#d94841')
+          .fontColor($r('app.color.text_danger'))
       }
       .width('100%')
       .layoutWeight(1)
@@ -121,7 +121,7 @@ export struct SearchAlbumResultList {
       Column() {
         Text('暂无搜索结果')
           .fontSize(13)
-          .fontColor('#666666')
+          .fontColor($r('app.color.text_secondary'))
       }
       .width('100%')
       .layoutWeight(1)

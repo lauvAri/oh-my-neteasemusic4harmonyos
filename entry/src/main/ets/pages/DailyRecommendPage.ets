@@ -4,19 +4,22 @@ import { DailyRecommendApi } from '../features/music/data/api/DailyRecommendApi'
 import { Song } from '../features/music/domain/model/Song';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
 import { SongList } from '../features/music/ui/component/SongList';
-import { MiniPlayerBar } from '../features/music/ui/mini/MiniPlayerBar';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 
-@Entry
+const DOMAIN = 0x0000;
+
 @Component
-struct DailyRecommendPage {
+export struct DailyRecommendPage {
   @State private loading: boolean = true;
   @State private errorMessage: string = '';
   @State private songs: Song[] = [];
 
   private api?: DailyRecommendApi;
   private engine: PlayerEngine = PlayerEngine.getInstance();
+  @Consume('pathStack') pathStack: NavPathStack;
 
   aboutToAppear(): void {
+    hilog.info(DOMAIN, 'NavRoute', 'DailyRecommendPage aboutToAppear');
     const context = getContext(this) as common.UIAbilityContext;
     this.api = new DailyRecommendApi(context);
     this.loadSongs();
@@ -62,13 +65,15 @@ struct DailyRecommendPage {
           Image($r('app.media.ic_arrow_back'))
             .width(18)
             .height(18)
+            .fillColor($r('app.color.icon_primary'))
         }
         .type(ButtonType.Circle)
         .width(36)
         .height(36)
-        .backgroundColor('#eceff3')
+        .backgroundColor($r('app.color.surface_subtle'))
         .onClick(() => {
-          router.back();
+          this.pathStack.pop();
+          AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
         })
 
         Column({ space: 2 }) {
@@ -77,7 +82,7 @@ struct DailyRecommendPage {
             .fontWeight(FontWeight.Medium)
           Text('为你更新的私人歌单')
             .fontSize(13)
-            .fontColor('#666666')
+            .fontColor($r('app.color.text_secondary'))
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
@@ -91,7 +96,7 @@ struct DailyRecommendPage {
             .height(44)
           Text('正在获取每日推荐...')
             .fontSize(14)
-            .fontColor('#666666')
+            .fontColor($r('app.color.text_secondary'))
         }
         .width('100%')
         .layoutWeight(1)
@@ -100,7 +105,7 @@ struct DailyRecommendPage {
         Column({ space: 12 }) {
           Text(this.errorMessage)
             .fontSize(14)
-            .fontColor('#d94841')
+            .fontColor($r('app.color.text_danger'))
           Button('重试')
             .onClick(() => {
               this.loadSongs();
@@ -119,11 +124,9 @@ struct DailyRecommendPage {
           }
         })
       }
-
-      MiniPlayerBar();
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 8 })
+    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
   }
 }

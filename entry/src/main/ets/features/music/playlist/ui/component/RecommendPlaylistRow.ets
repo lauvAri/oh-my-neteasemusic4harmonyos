@@ -1,5 +1,4 @@
 import common from '@ohos.app.ability.common';
-import { router } from '@kit.ArkUI';
 import { RecommendPlaylist } from '../../domain/model/RecommendPlaylistModels';
 import { RecommendPlaylistApi } from '../../data/api/RecommendPlaylistApi';
 
@@ -8,6 +7,7 @@ export struct RecommendPlaylistRow {
   @State private playlists: RecommendPlaylist[] = [];
   @State private loading: boolean = true;
   @State private errorMessage: string = '';
+  @Consume('pathStack') pathStack: NavPathStack;
 
   private api?: RecommendPlaylistApi;
 
@@ -91,7 +91,7 @@ export struct RecommendPlaylistRow {
 
       Text(playlist.name)
         .fontSize(13)
-        .fontColor('#1f2937')
+        .fontColor($r('app.color.text_primary'))
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .width('100%')
@@ -99,12 +99,11 @@ export struct RecommendPlaylistRow {
     .width(120)
     .alignItems(HorizontalAlign.Start)
     .onClick(() => {
-      router.pushUrl({
-        url: 'pages/PlaylistDetailPage',
-        params: {
-          playlistId: playlist.id
-        }
+      this.pathStack.pushPath({
+        name: 'PlaylistDetailPage',
+        param: playlist.id
       });
+      AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
     })
   }
 
@@ -113,7 +112,7 @@ export struct RecommendPlaylistRow {
       Text('推荐歌单')
         .fontSize(18)
         .fontWeight(FontWeight.Medium)
-        .fontColor('#1f2937')
+        .fontColor($r('app.color.text_primary'))
         .width('100%')
 
       if (this.loading) {
@@ -123,7 +122,7 @@ export struct RecommendPlaylistRow {
             .height(28)
           Text('推荐歌单加载中...')
             .fontSize(13)
-            .fontColor('#666666')
+            .fontColor($r('app.color.text_secondary'))
         }
         .width('100%')
         .height(140)
@@ -132,7 +131,7 @@ export struct RecommendPlaylistRow {
         Column({ space: 8 }) {
           Text(this.errorMessage)
             .fontSize(13)
-            .fontColor('#d94841')
+            .fontColor($r('app.color.text_danger'))
           Button('重试')
             .onClick(() => {
               this.loadPlaylists();
@@ -144,7 +143,7 @@ export struct RecommendPlaylistRow {
       } else if (this.playlists.length === 0) {
         Text('暂无推荐歌单')
           .fontSize(13)
-          .fontColor('#666666')
+          .fontColor($r('app.color.text_secondary'))
           .width('100%')
           .height(140)
           .textAlign(TextAlign.Center)

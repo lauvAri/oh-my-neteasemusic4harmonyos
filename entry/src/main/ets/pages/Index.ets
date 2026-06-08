@@ -109,7 +109,7 @@ struct Index {
           .width(220)
           .height(220)
           .objectFit(ImageFit.Contain)
-          .border({ width: 1, color: '#e5e7eb', radius: 8 })
+          .border({ width: 1, color: $r('app.color.border_subtle'), radius: 8 })
           .padding(10)
       } else {
         Column() {
@@ -120,12 +120,12 @@ struct Index {
         .width(220)
         .height(220)
         .justifyContent(FlexAlign.Center)
-        .border({ width: 1, color: '#e5e7eb', radius: 8 })
+        .border({ width: 1, color: $r('app.color.border_subtle'), radius: 8 })
       }
 
       Text(this.statusText)
         .fontSize(15)
-        .fontColor('#555555')
+        .fontColor($r('app.color.text_hint'))
         .textAlign(TextAlign.Center)
         .width('100%')
 

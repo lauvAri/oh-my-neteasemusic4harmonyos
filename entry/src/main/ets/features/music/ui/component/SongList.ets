@@ -74,7 +74,7 @@ export struct SongList {
     Row({ space: 12 }) {
       Text(`${index + 1}`)
         .fontSize(13)
-        .fontColor(this.selectedSongId === song.id ? '#1677ff' : '#999999')
+        .fontColor(this.selectedSongId === song.id ? $r('app.color.text_brand') : $r('app.color.text_tertiary'))
         .width(24)
         .textAlign(TextAlign.Center)
 
@@ -88,13 +88,13 @@ export struct SongList {
         Text(song.name)
           .fontSize(15)
           .fontWeight(this.selectedSongId === song.id ? FontWeight.Medium : FontWeight.Regular)
-          .fontColor('#1f2937')
+          .fontColor($r('app.color.text_primary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
         Text(`${this.getArtistNames(song)} - ${song.al.name}`)
           .fontSize(12)
-          .fontColor('#777777')
+          .fontColor($r('app.color.text_quaternary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
@@ -103,7 +103,7 @@ export struct SongList {
 
       Text(this.getDurationText(song))
         .fontSize(12)
-        .fontColor('#999999')
+        .fontColor($r('app.color.text_tertiary'))
     }
     .width('100%')
     .padding({ top: 8, bottom: 8 })

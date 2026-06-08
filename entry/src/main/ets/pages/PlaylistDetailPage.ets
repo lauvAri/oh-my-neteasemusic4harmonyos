@@ -5,33 +5,24 @@ import { PlaylistDetailApi } from '../features/music/playlist/data/api/PlaylistD
 import { Song } from '../features/music/domain/model/Song';
 import { SongList, SongListCallbacks } from '../features/music/ui/component/SongList';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
-import { MiniPlayerBar } from '../features/music/ui/mini/MiniPlayerBar';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 
-@Entry
+const DOMAIN = 0x0000;
+
 @Component
-struct PlaylistDetailPage {
+export struct PlaylistDetailPage {
   @State private playlist: PlaylistDetail | null = null;
   @State private loading: boolean = true;
   @State private errorMessage: string = '';
+  @Prop playlistId: number = 0;
 
   private api?: PlaylistDetailApi;
   private engine: PlayerEngine = PlayerEngine.getInstance();
-  private readonly playlistId: number = 0;
+  @Consume('pathStack') pathStack: NavPathStack;
 
   aboutToAppear(): void {
-    const params = router.getParams() as Record<string, Object>;
-    const rawId = params['playlistId'];
-    let parsedId = 0;
-    if (typeof rawId === 'number') {
-      parsedId = rawId;
-    } else if (typeof rawId === 'string') {
-      const parsed = Number.parseInt(rawId, 10);
-      if (!Number.isNaN(parsed)) {
-        parsedId = parsed;
-      }
-    }
-
-    if (parsedId <= 0) {
+    hilog.info(DOMAIN, 'NavRoute', 'PlaylistDetailPage aboutToAppear, playlistId=' + this.playlistId);
+    if (this.playlistId <= 0) {
       this.loading = false;
       this.errorMessage = '歌单 ID 无效';
       return;
@@ -39,7 +30,7 @@ struct PlaylistDetailPage {
 
     const context = getContext(this) as common.UIAbilityContext;
     this.api = new PlaylistDetailApi(context);
-    this.loadDetail(parsedId);
+    this.loadDetail(this.playlistId);
   }
 
   private async loadDetail(playlistId: number): Promise<void> {
@@ -97,13 +88,15 @@ struct PlaylistDetailPage {
           Image($r('app.media.ic_arrow_back'))
             .width(18)
             .height(18)
+            .fillColor($r('app.color.icon_primary'))
         }
         .type(ButtonType.Circle)
         .width(36)
         .height(36)
-        .backgroundColor('#eceff3')
+        .backgroundColor($r('app.color.surface_subtle'))
         .onClick(() => {
-          router.back();
+          this.pathStack.pop();
+          AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
         })
 
         Text('歌单详情')
@@ -122,7 +115,7 @@ struct PlaylistDetailPage {
             .height(44)
           Text('正在加载歌单详情...')
             .fontSize(14)
-            .fontColor('#666666')
+            .fontColor($r('app.color.text_secondary'))
         }
         .width('100%')
         .layoutWeight(1)
@@ -131,7 +124,7 @@ struct PlaylistDetailPage {
         Column({ space: 12 }) {
           Text(this.errorMessage)
             .fontSize(14)
-            .fontColor('#d94841')
+            .fontColor($r('app.color.text_danger'))
           Button('重试')
             .onClick(() => {
               if (this.playlistId > 0) {
@@ -145,7 +138,7 @@ struct PlaylistDetailPage {
       } else if (this.playlist === null) {
         Text('暂无歌单数据')
           .fontSize(14)
-          .fontColor('#666666')
+          .fontColor($r('app.color.text_secondary'))
           .width('100%')
           .layoutWeight(1)
           .textAlign(TextAlign.Center)
@@ -161,26 +154,26 @@ struct PlaylistDetailPage {
             Text(this.playlist.name)
               .fontSize(18)
               .fontWeight(FontWeight.Medium)
-              .fontColor('#1f2937')
+              .fontColor($r('app.color.text_primary'))
               .maxLines(2)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
 
             Text(this.playlist.creator.nickname)
               .fontSize(12)
-              .fontColor('#666666')
+              .fontColor($r('app.color.text_secondary'))
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
 
             Text(`${this.formatCount(this.playlist.playCount)}次播放 · ${this.formatCount(this.playlist.subscribedCount)}收藏`)
               .fontSize(11)
-              .fontColor('#999999')
+              .fontColor($r('app.color.text_tertiary'))
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
 
             if (this.playlist.tags !== null && this.playlist.tags.length > 0) {
               Text(this.playlist.tags.join(' / '))
                 .fontSize(11)
-                .fontColor('#999999')
+                .fontColor($r('app.color.text_tertiary'))
                 .maxLines(1)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
             }
@@ -193,7 +186,7 @@ struct PlaylistDetailPage {
         if (this.playlist.description !== null && this.playlist.description.length > 0) {
           Text(this.playlist.description)
             .fontSize(12)
-            .fontColor('#666666')
+            .fontColor($r('app.color.text_secondary'))
             .maxLines(3)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .width('100%')
@@ -201,7 +194,7 @@ struct PlaylistDetailPage {
 
         Text(`共 ${this.playlist.trackCount} 首`)
           .fontSize(13)
-          .fontColor('#666666')
+          .fontColor($r('app.color.text_secondary'))
           .width('100%')
 
         SongList({
@@ -213,11 +206,9 @@ struct PlaylistDetailPage {
           }
         })
       }
-
-      MiniPlayerBar();
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 8 })
+    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
   }
 }

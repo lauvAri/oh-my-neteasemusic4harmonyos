@@ -1,4 +1,4 @@
-import { promptAction, router } from '@kit.ArkUI';
+import { promptAction } from '@kit.ArkUI';
 import common from '@ohos.app.ability.common';
 import { HotSearchList } from '../features/search/ui/component/HotSearchList';
 import { SearchTabBar } from '../features/search/ui/component/SearchTabBar';
@@ -16,13 +16,14 @@ import {
 } from '../features/search/domain/model/SearchModels';
 import { mapSearchSongToSong } from '../features/search/domain/SearchSongMapper';
 import { Song } from '../features/music/domain/model/Song';
-import { MiniPlayerBar } from '../features/music/ui/mini/MiniPlayerBar';
+import { hilog } from '@kit.PerformanceAnalysisKit';
+
+const DOMAIN = 0x0000;
 
 const PAGE_SIZE: number = 30;
 
-@Entry
 @Component
-struct SearchPage {
+export struct SearchPage {
   @State private keyword: string = '';
   @State private submittedKeyword: string = '';
   @State private activeTab: SearchType = 'song';
@@ -58,8 +59,10 @@ struct SearchPage {
   @State private playlistError: string = '';
 
   private api?: SearchApi;
+  @Consume('pathStack') pathStack: NavPathStack;
 
   aboutToAppear(): void {
+    hilog.info(DOMAIN, 'NavRoute', 'SearchPage aboutToAppear');
     const context = getContext(this) as common.UIAbilityContext;
     this.api = new SearchApi(context);
   }
@@ -257,13 +260,15 @@ struct SearchPage {
           Image($r('app.media.ic_arrow_back'))
             .width(18)
             .height(18)
+            .fillColor($r('app.color.icon_primary'))
         }
         .type(ButtonType.Circle)
         .width(36)
         .height(36)
-        .backgroundColor('#eceff3')
+        .backgroundColor($r('app.color.surface_subtle'))
         .onClick(() => {
-          router.back();
+          this.pathStack.pop();
+          AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
         })
 
         Text('搜索')
@@ -280,7 +285,7 @@ struct SearchPage {
           .layoutWeight(1)
           .height(36)
           .fontSize(14)
-          .backgroundColor('#f2f3f5')
+          .backgroundColor($r('app.color.surface_input'))
           .borderRadius(18)
           .padding({ left: 16, right: 16 })
           .onChange((value: string) => {
@@ -294,11 +299,12 @@ struct SearchPage {
           Image($r('app.media.ic_search'))
             .width(18)
             .height(18)
+            .fillColor($r('app.color.icon_primary'))
         }
         .type(ButtonType.Circle)
         .width(36)
         .height(36)
-        .backgroundColor('#eceff3')
+        .backgroundColor($r('app.color.surface_subtle'))
         .onClick(() => {
           this.submitWithKeyword(this.keyword);
         })
@@ -320,7 +326,7 @@ struct SearchPage {
             Text('热搜榜')
               .fontSize(18)
               .fontWeight(FontWeight.Medium)
-              .fontColor('#1f2937')
+              .fontColor($r('app.color.text_primary'))
               .layoutWeight(1)
           }
           .width('100%')
@@ -380,11 +386,9 @@ struct SearchPage {
           })
         }
       }
-
-      MiniPlayerBar();
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 8 })
+    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
   }
 }

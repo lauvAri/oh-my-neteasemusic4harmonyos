@@ -50,7 +50,7 @@ export struct HotSearchList {
       Text(`${index + 1}`)
         .fontSize(16)
         .fontWeight(FontWeight.Medium)
-        .fontColor(index < 3 ? '#d94841' : '#666666')
+        .fontColor(index < 3 ? $r('app.color.text_danger') : $r('app.color.text_secondary'))
         .width(24)
         .textAlign(TextAlign.Center)
 
@@ -58,7 +58,7 @@ export struct HotSearchList {
         Row({ space: 6 }) {
           Text(item.searchWord ?? '')
             .fontSize(15)
-            .fontColor('#1f2937')
+            .fontColor($r('app.color.text_primary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
@@ -75,7 +75,7 @@ export struct HotSearchList {
         if ((item.content ?? '').length > 0) {
           Text(item.content ?? '')
             .fontSize(11)
-            .fontColor('#999999')
+            .fontColor($r('app.color.text_tertiary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .width('100%')
@@ -87,7 +87,7 @@ export struct HotSearchList {
       if (item.score > 0) {
         Text(this.formatScore(item.score))
           .fontSize(12)
-          .fontColor('#999999')
+          .fontColor($r('app.color.text_tertiary'))
       }
     }
     .width('100%')
@@ -105,7 +105,7 @@ export struct HotSearchList {
           .height(28)
         Text('热搜加载中...')
           .fontSize(13)
-          .fontColor('#666666')
+          .fontColor($r('app.color.text_secondary'))
       }
       .width('100%')
       .layoutWeight(1)
@@ -114,7 +114,7 @@ export struct HotSearchList {
       Column({ space: 8 }) {
         Text(this.errorMessage)
           .fontSize(13)
-          .fontColor('#d94841')
+          .fontColor($r('app.color.text_danger'))
         Button('重试')
           .onClick(() => {
             this.loadHotDetail();
@@ -126,7 +126,7 @@ export struct HotSearchList {
     } else if (this.items.length === 0) {
       Text('暂无热搜')
         .fontSize(13)
-        .fontColor('#666666')
+        .fontColor($r('app.color.text_secondary'))
         .width('100%')
         .layoutWeight(1)
         .textAlign(TextAlign.Center)
@@ -141,7 +141,7 @@ export struct HotSearchList {
       .width('100%')
       .layoutWeight(1)
       .listDirection(Axis.Vertical)
-      .divider({ strokeWidth: 0.5, color: '#f0f0f0' })
+      .divider({ strokeWidth: 0.5, color: $r('app.color.divider_subtle') })
     }
   }
 }

@@ -73,11 +73,11 @@ export struct MinePage {
     Row() {
       Text(label)
         .fontSize(14)
-        .fontColor('#777777')
+        .fontColor($r('app.color.text_quaternary'))
         .width(88)
       Text(value)
         .fontSize(15)
-        .fontColor('#222222')
+        .fontColor($r('app.color.text_primary'))
         .layoutWeight(1)
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -100,7 +100,7 @@ export struct MinePage {
               .height(44)
             Text('正在获取账号信息...')
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.text_secondary'))
           }
           .width('100%')
           .height(220)
@@ -117,7 +117,7 @@ export struct MinePage {
                 Blank()
                   .width('100%')
                   .height(150)
-                  .backgroundColor('#f1f3f5')
+                  .backgroundColor($r('app.color.surface_banner_fallback'))
               }
 
               Row({ space: 12 }) {
@@ -125,18 +125,18 @@ export struct MinePage {
                   .width(72)
                   .height(72)
                   .objectFit(ImageFit.Cover)
-                  .border({ width: 2, color: '#ffffff', radius: 36 })
+                  .border({ width: 2, color: $r('app.color.text_on_dark_primary'), radius: 36 })
 
                 Column({ space: 4 }) {
                   Text(this.nickname)
                     .fontSize(22)
                     .fontWeight(FontWeight.Medium)
-                    .fontColor('#ffffff')
+                    .fontColor($r('app.color.text_on_dark_primary'))
                     .maxLines(1)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
                   Text(this.signature.length > 0 ? this.signature : '这个人很懒，什么都没写')
                     .fontSize(13)
-                    .fontColor('#f5f5f5')
+                    .fontColor($r('app.color.text_on_dark_secondary'))
                     .maxLines(1)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
                 }
@@ -162,7 +162,7 @@ export struct MinePage {
             }
             .width('100%')
             .padding(14)
-            .backgroundColor('#f8f9fa')
+            .backgroundColor($r('app.color.surface_info'))
             .borderRadius(8)
 
             Row({ space: 10 }) {
@@ -173,8 +173,8 @@ export struct MinePage {
                 })
               Button('退出登录')
                 .layoutWeight(1)
-                .fontColor('#d4380d')
-                .backgroundColor('#fff1e8')
+                .fontColor($r('app.color.text_danger_strong'))
+                .backgroundColor($r('app.color.surface_danger_subtle'))
                 .onClick(() => {
                   this.logout();
                 })
@@ -186,7 +186,7 @@ export struct MinePage {
           Column({ space: 12 }) {
             Text(this.errorText)
               .fontSize(14)
-              .fontColor('#666666')
+              .fontColor($r('app.color.text_secondary'))
               .textAlign(TextAlign.Center)
             Button('返回登录')
               .onClick(() => {
@@ -197,9 +197,11 @@ export struct MinePage {
           .height(220)
           .justifyContent(FlexAlign.Center)
         }
+
+        Blank().height(80);
       }
       .width('100%')
-      .padding(16)
+      .padding({ left: 16, right: 16, top: 16, bottom: 16 })
     }
     .width('100%')
     .height('100%')

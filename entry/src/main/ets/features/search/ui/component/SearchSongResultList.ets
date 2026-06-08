@@ -10,6 +10,7 @@ export struct SearchSongResultList {
   @Prop isLoading: boolean = false;
   @Prop errorMessage: string = '';
   onLoadMore: () => void = () => {};
+  @Consume('pathStack') pathStack: NavPathStack;
 
   @StorageLink('selectedSongId') private selectedSongId: number = 0;
   private engine: PlayerEngine = PlayerEngine.getInstance();
@@ -48,7 +49,7 @@ export struct SearchSongResultList {
     Row({ space: 12 }) {
       Text(`${index + 1}`)
         .fontSize(13)
-        .fontColor(this.selectedSongId === song.id ? '#1677ff' : '#999999')
+        .fontColor(this.selectedSongId === song.id ? $r('app.color.text_brand') : $r('app.color.text_tertiary'))
         .width(24)
         .textAlign(TextAlign.Center)
 
@@ -56,13 +57,13 @@ export struct SearchSongResultList {
         Text(song.name)
           .fontSize(15)
           .fontWeight(this.selectedSongId === song.id ? FontWeight.Medium : FontWeight.Regular)
-          .fontColor('#1f2937')
+          .fontColor($r('app.color.text_primary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
         Text(`${this.getArtistNames(song)} - ${song.al.name}`)
           .fontSize(12)
-          .fontColor('#777777')
+          .fontColor($r('app.color.text_quaternary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
@@ -71,7 +72,7 @@ export struct SearchSongResultList {
 
       Text(this.getDurationText(song))
         .fontSize(12)
-        .fontColor('#999999')
+        .fontColor($r('app.color.text_tertiary'))
     }
     .width('100%')
     .padding({ top: 8, bottom: 8 })
@@ -89,7 +90,7 @@ export struct SearchSongResultList {
           .height(16)
         Text('加载中...')
           .fontSize(12)
-          .fontColor('#999999')
+          .fontColor($r('app.color.text_tertiary'))
       }
       .width('100%')
       .height(48)
@@ -98,15 +99,15 @@ export struct SearchSongResultList {
       Button('加载更多')
         .width('100%')
         .height(40)
-        .backgroundColor('#f2f3f5')
-        .fontColor('#1677ff')
+        .backgroundColor($r('app.color.surface_input'))
+        .fontColor($r('app.color.text_brand'))
         .onClick(() => {
           this.onLoadMore();
         })
     } else {
       Text('没有更多了')
         .fontSize(12)
-        .fontColor('#999999')
+        .fontColor($r('app.color.text_tertiary'))
         .width('100%')
         .height(48)
         .textAlign(TextAlign.Center)
@@ -121,7 +122,7 @@ export struct SearchSongResultList {
           .height(28)
         Text('搜索中...')
           .fontSize(13)
-          .fontColor('#666666')
+          .fontColor($r('app.color.text_secondary'))
       }
       .width('100%')
       .layoutWeight(1)
@@ -130,7 +131,7 @@ export struct SearchSongResultList {
       Column({ space: 8 }) {
         Text(this.errorMessage)
           .fontSize(13)
-          .fontColor('#d94841')
+          .fontColor($r('app.color.text_danger'))
       }
       .width('100%')
       .layoutWeight(1)
@@ -139,7 +140,7 @@ export struct SearchSongResultList {
       Column() {
         Text('暂无搜索结果')
           .fontSize(13)
-          .fontColor('#666666')
+          .fontColor($r('app.color.text_secondary'))
       }
       .width('100%')
       .layoutWeight(1)

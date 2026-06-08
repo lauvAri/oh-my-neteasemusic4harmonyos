@@ -21,79 +21,89 @@ export struct MiniPlayerBar {
     return this.currentMs / this.durationMs;
   }
 
-  build() {
-    if (this.visible) {
-      Column({ space: 6 }) {
-        Row({ space: 12 }) {
-          if (this.coverUrl.length > 0) {
-            Image(this.coverUrl)
-              .width(44)
-              .height(44)
-              .borderRadius(6)
-              .objectFit(ImageFit.Cover)
-              .onClick(() => {
-                this.openPlayerPage();
-              })
-          } else {
-            Stack() {
-              Text('♪')
-                .fontSize(20)
-                .fontColor('#8a8f98')
-            }
+  @Builder
+  private playerBody() {
+    Column({ space: 6 }) {
+      Row({ space: 12 }) {
+        if (this.coverUrl.length > 0) {
+          Image(this.coverUrl)
             .width(44)
             .height(44)
-            .backgroundColor('#e5e7eb')
             .borderRadius(6)
+            .objectFit(ImageFit.Cover)
             .onClick(() => {
               this.openPlayerPage();
             })
+        } else {
+          Stack() {
+            Text('♪')
+              .fontSize(20)
+              .fontColor($r('app.color.text_muted_placeholder'))
           }
-
-          Column({ space: 2 }) {
-            Text(this.songTitle)
-              .fontSize(15)
-              .fontWeight(FontWeight.Medium)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-
-            Text(this.artistText.length > 0 ? this.artistText : '未知歌手')
-              .fontSize(12)
-              .fontColor('#666666')
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
+          .width(44)
+          .height(44)
+          .backgroundColor('#22000000')
+          .borderRadius(6)
           .onClick(() => {
             this.openPlayerPage();
           })
-
-          Button() {
-            Image(this.playing ? $r('app.media.ic_pause') : $r('app.media.ic_play'))
-              .width(16)
-              .height(16)
-          }
-            .type(ButtonType.Circle)
-            .width(36)
-            .height(36)
-            .backgroundColor('#e5e7eb')
-            .onClick(() => {
-              this.engine.togglePlay().catch((error: Error) => {
-                console.error(`toggle play failed: ${error.message}`);
-              });
-            })
         }
 
-        Progress({ value: Math.round(this.getProgressValue() * 100), total: 100, style: ProgressStyle.Linear })
+        Column({ space: 2 }) {
+          Text(this.songTitle)
+            .fontSize(15)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.text_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+          Text(this.artistText.length > 0 ? this.artistText : '未知歌手')
+            .fontSize(12)
+            .fontColor($r('app.color.text_secondary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+        .onClick(() => {
+          this.openPlayerPage();
+        })
+
+        Button() {
+          Image(this.playing ? $r('app.media.ic_pause') : $r('app.media.ic_play'))
+            .width(16)
+            .height(16)
+            .fillColor($r('app.color.icon_primary'))
+        }
+          .type(ButtonType.Circle)
+          .width(36)
+          .height(36)
+          .backgroundColor('#22000000')
+          .onClick(() => {
+            this.engine.togglePlay().catch((error: Error) => {
+              console.error(`toggle play failed: ${error.message}`);
+            });
+          })
+      }
+
+        Progress({
+          value: Math.round(this.getProgressValue() * 100),
+          total: 100,
+          style: ProgressStyle.Linear
+        })
           .width('100%')
           .height(3)
-          .color('#1677ff')
-          .backgroundColor('#d9dde3')
-      }
-      .width('100%')
-      .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-      .backgroundColor('#f2f3f5')
-      .borderRadius(12)
+          .color($r('app.color.text_brand'))
+          .backgroundColor($r('app.color.progress_track_translucent'))
+    }
+    .width('100%')
+  }
+
+  build() {
+    if (this.visible) {
+      this.playerBody();
+    } else {
+      Row() {}
     }
   }
 

@@ -78,13 +78,6 @@ export struct HomeBanner {
     } catch (error) {
       promptAction.showToast({ message: '歌曲播放失败' });
     }
-
-    router.pushUrl({
-      url: 'pages/MusicPlayerPage',
-      params: {
-        songId: songId
-      }
-    });
   }
 
   build() {
@@ -92,11 +85,11 @@ export struct HomeBanner {
       if (this.isLoading) {
         Text('Banner 加载中...')
           .fontSize(14)
-          .fontColor('#666666')
+          .fontColor($r('app.color.text_secondary'))
       } else if (this.errorMessage.length > 0) {
         Text(this.errorMessage)
           .fontSize(14)
-          .fontColor('#d94841')
+          .fontColor($r('app.color.text_danger'))
 
         Button('重试')
           .onClick(() => {
@@ -105,7 +98,7 @@ export struct HomeBanner {
       } else if (this.banners.length === 0) {
         Text('暂无 Banner 数据')
           .fontSize(14)
-          .fontColor('#666666')
+          .fontColor($r('app.color.text_secondary'))
       } else {
         Swiper() {
           ForEach(this.banners, (item: Banner) => {
