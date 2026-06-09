@@ -281,6 +281,7 @@ export struct MusicPlayerCard {
         .trackColor(SLIDER_TRACK_GRAY)
         .selectedColor(TEXT_PRIMARY)
         .width('100%')
+        .padding({ left: 12, right: 12 })
         .onChange((value: number, mode: SliderChangeMode) => {
           this.sliderValue = value;
           if (mode === SliderChangeMode.End && this.durationMs > 0) {
@@ -301,8 +302,8 @@ export struct MusicPlayerCard {
           .fontColor(TEXT_TERTIARY)
       }
       .width('100%')
-      .padding({ left: 2, right: 2 })
-      .margin({ top: 4 })
+      .padding({ left: 16, right: 16 })
+      .margin({ top: 2 })
 
       Row({ space: 28 }) {
         Button() {

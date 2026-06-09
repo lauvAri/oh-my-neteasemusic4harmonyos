@@ -71,49 +71,59 @@ export struct SongList {
 
   @Builder
   private songRow(song: Song, index: number) {
-    Row({ space: 12 }) {
-      Text(`${index + 1}`)
-        .fontSize(13)
-        .fontColor(this.selectedSongId === song.id ? $r('app.color.text_brand') : $r('app.color.text_tertiary'))
-        .width(24)
-        .textAlign(TextAlign.Center)
+    Column() {
+      Row({ space: 12 }) {
+        Text(`${index + 1}`)
+          .fontSize(13)
+          .fontColor(this.selectedSongId === song.id ? $r('app.color.text_brand') : $r('app.color.text_tertiary'))
+          .width(24)
+          .textAlign(TextAlign.Center)
 
-      Image(song.al.picUrl)
-        .width(48)
-        .height(48)
-        .borderRadius(6)
-        .objectFit(ImageFit.Cover)
+        Image(song.al.picUrl)
+          .width(48)
+          .height(48)
+          .borderRadius(6)
+          .objectFit(ImageFit.Cover)
 
-      Column({ space: 4 }) {
-        Text(song.name)
-          .fontSize(15)
-          .fontWeight(this.selectedSongId === song.id ? FontWeight.Medium : FontWeight.Regular)
-          .fontColor($r('app.color.text_primary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Column({ space: 4 }) {
+          Text(song.name)
+            .fontSize(15)
+            .fontWeight(this.selectedSongId === song.id ? FontWeight.Medium : FontWeight.Regular)
+            .fontColor(this.selectedSongId === song.id ? $r('app.color.text_brand') : $r('app.color.text_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-        Text(`${this.getArtistNames(song)} - ${song.al.name}`)
+          Text(`${this.getArtistNames(song)} - ${song.al.name}`)
+            .fontSize(12)
+            .fontColor($r('app.color.text_quaternary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        Text(this.getDurationText(song))
           .fontSize(12)
-          .fontColor($r('app.color.text_quaternary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .fontColor($r('app.color.text_tertiary'))
+          .margin({ right: 4 })
       }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
+      .width('100%')
+      .padding({ top: 10, bottom: 10 })
 
-      Text(this.getDurationText(song))
-        .fontSize(12)
-        .fontColor($r('app.color.text_tertiary'))
+      if (index < this.songs.length - 1) {
+        Divider()
+          .color($r('app.color.divider_subtle'))
+          .width('100%')
+      }
     }
     .width('100%')
-    .padding({ top: 8, bottom: 8 })
     .onClick(() => {
       this.callbacks.onSongClick(song, index);
     })
   }
 
   build() {
-    List({ space: 2 }) {
+    List() {
       LazyForEach(this.dataSource, (item: Song, index: number) => {
         ListItem() {
           this.songRow(item, index);

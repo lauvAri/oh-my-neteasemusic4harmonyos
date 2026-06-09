@@ -5,6 +5,7 @@ import { AlbumInfo } from '../features/music/album/domain/model/AlbumModels';
 import { Song } from '../features/music/domain/model/Song';
 import { SongList, SongListCallbacks } from '../features/music/ui/component/SongList';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
+import { ExpandableText } from '../common/ui/ExpandableText';
 
 @Component
 export struct AlbumDetailPage {
@@ -92,14 +93,16 @@ export struct AlbumDetailPage {
         .justifyContent(FlexAlign.Center)
       } else if (this.album) {
         Scroll() {
-          Column({ space: 16 }) {
+          Column({ space: 20 }) {
+            // Album header card
             Row({ space: 16 }) {
               Image(this.album.picUrl)
-                .width(100)
-                .height(100)
-                .borderRadius(8)
+                .width(120)
+                .height(120)
+                .borderRadius(12)
                 .objectFit(ImageFit.Cover)
                 .alt($r('app.media.startIcon'))
+                .shadow({ radius: 12, color: 'rgba(0,0,0,0.12)', offsetX: 0, offsetY: 4 })
 
               Column({ space: 8 }) {
                 Text(this.album.name)
@@ -111,9 +114,15 @@ export struct AlbumDetailPage {
 
                 Text(this.album.artist ? this.album.artist.name : '未知歌手')
                   .fontSize(14)
-                  .fontColor($r('app.color.text_secondary'))
+                  .fontColor($r('app.color.text_brand'))
                   .maxLines(1)
                   .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .onClick(() => {
+                    if (this.album && this.album.artist) {
+                      this.pathStack.pushPath({ name: 'ArtistDetailPage', param: this.album.artist.id });
+                      AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+                    }
+                  })
 
                 Text(`${this.album.size} 首`)
                   .fontSize(13)
@@ -124,20 +133,32 @@ export struct AlbumDetailPage {
             }
             .width('100%')
 
+            // Description with expandable text
             if (this.album.description.length > 0) {
-              Text(this.album.description)
-                .fontSize(14)
-                .fontColor($r('app.color.text_secondary'))
-                .maxLines(3)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-                .width('100%')
+              ExpandableText({
+                content: this.album.description,
+                maxLines: 3,
+                fontSize: 14,
+                fontColor: $r('app.color.text_secondary'),
+                brandColor: $r('app.color.text_brand'),
+                constraintWidth: 343
+              })
+              .width('100%')
             }
 
-            Text('歌曲列表')
-              .fontSize(16)
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('app.color.text_primary'))
-              .width('100%')
+            // Song list section header with accent bar
+            Row({ space: 8 }) {
+              Blank()
+                .width(3)
+                .height(16)
+                .backgroundColor($r('app.color.text_brand'))
+                .borderRadius(2)
+              Text('歌曲列表')
+                .fontSize(16)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.text_primary'))
+            }
+            .width('100%')
 
             if (this.songs.length === 0) {
               Text('暂无歌曲信息')
@@ -160,7 +181,7 @@ export struct AlbumDetailPage {
             Blank().height(80);
           }
           .width('100%')
-          .padding({ left: 16, right: 16, top: 8, bottom: 16 })
+          .padding({ left: 16, right: 16, top: 12, bottom: 16 })
         }
         .layoutWeight(1)
       } else {

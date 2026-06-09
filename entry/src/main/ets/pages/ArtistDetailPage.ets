@@ -5,6 +5,7 @@ import { ArtistInfo, ArtistAlbumItem } from '../features/music/artist/domain/mod
 import { Song } from '../features/music/domain/model/Song';
 import { SongList, SongListCallbacks } from '../features/music/ui/component/SongList';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
+import { ExpandableText } from '../common/ui/ExpandableText';
 
 @Component
 export struct ArtistDetailPage {
@@ -105,10 +106,10 @@ export struct ArtistDetailPage {
   @Builder
   private tabButton(title: string, index: number) {
     Text(title)
-      .fontSize(14)
+      .fontSize(15)
       .fontWeight(this.currentTab === index ? FontWeight.Medium : FontWeight.Regular)
       .fontColor(this.currentTab === index ? $r('app.color.text_brand') : $r('app.color.text_secondary'))
-      .padding({ bottom: 6 })
+      .padding({ bottom: 8 })
       .borderWidth({ bottom: 2 })
       .borderColor(this.currentTab === index ? $r('app.color.text_brand') : Color.Transparent)
       .onClick(() => {
@@ -163,11 +164,12 @@ export struct ArtistDetailPage {
           // Artist header
           Row({ space: 16 }) {
             Image(this.getArtistImageUrl())
-              .width(80)
-              .height(80)
-              .borderRadius(40)
+              .width(88)
+              .height(88)
+              .borderRadius(44)
               .objectFit(ImageFit.Cover)
               .alt($r('app.media.startIcon'))
+              .shadow({ radius: 8, color: 'rgba(0,0,0,0.10)', offsetX: 0, offsetY: 2 })
 
             Column({ space: 6 }) {
               Text(this.artist.name)
@@ -192,18 +194,22 @@ export struct ArtistDetailPage {
           .width('100%')
           .padding({ left: 16, right: 16, top: 4, bottom: 4 })
 
+          // Expandable description
           if (this.artist.briefDesc.length > 0) {
-            Text(this.artist.briefDesc)
-              .fontSize(13)
-              .fontColor($r('app.color.text_secondary'))
-              .maxLines(2)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .width('100%')
-              .padding({ left: 16, right: 16, top: 4, bottom: 8 })
+            ExpandableText({
+              content: this.artist.briefDesc,
+              maxLines: 2,
+              fontSize: 13,
+              fontColor: $r('app.color.text_secondary'),
+              brandColor: $r('app.color.text_brand'),
+              constraintWidth: 311
+            })
+            .width('100%')
+            .padding({ left: 16, right: 16, top: 4, bottom: 8 })
           }
 
           // Tab bar
-          Row({ space: 24 }) {
+          Row({ space: 32 }) {
             this.tabButton('热门歌曲', 0);
             this.tabButton('专辑', 1);
           }
@@ -273,13 +279,13 @@ export struct ArtistDetailPage {
                           .fontSize(11)
                           .fontColor($r('app.color.text_quaternary'))
                           .width(100)
-                       }
-                       .width('30%')
-                       .margin({ bottom: 12 })
-                       .onClick(() => {
-                         this.pathStack.pushPath({ name: 'AlbumDetailPage', param: item.id });
-                         AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
-                       })
+                      }
+                      .width('30%')
+                      .margin({ right: '3.33%', bottom: 16 })
+                      .onClick(() => {
+                        this.pathStack.pushPath({ name: 'AlbumDetailPage', param: item.id });
+                        AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+                      })
                     }, (item: ArtistAlbumItem) => `${item.id}`)
                   }
                   .width('100%')
