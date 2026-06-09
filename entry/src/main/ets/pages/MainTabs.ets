@@ -3,6 +3,8 @@ import { MinePage } from './MinePage';
 import { SearchPage } from './SearchPage';
 import { DailyRecommendPage } from './DailyRecommendPage';
 import { PlaylistDetailPage } from './PlaylistDetailPage';
+import { ArtistDetailPage } from './ArtistDetailPage';
+import { AlbumDetailPage } from './AlbumDetailPage';
 import { MiniPlayerBar } from '../features/music/ui/mini/MiniPlayerBar';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
 import common from '@ohos.app.ability.common';
@@ -30,6 +32,16 @@ function MainTabsRouteMap(name: string, param: Object) {
       PlaylistDetailPage({ playlistId: param as number });
     }
     .hideTitleBar(true)
+  } else if (name === 'ArtistDetailPage') {
+    NavDestination() {
+      ArtistDetailPage({ artistId: param as number });
+    }
+    .hideTitleBar(true)
+  } else if (name === 'AlbumDetailPage') {
+    NavDestination() {
+      AlbumDetailPage({ albumId: param as number });
+    }
+    .hideTitleBar(true)
   }
 }
 
@@ -51,6 +63,21 @@ struct MainTabs {
     this.engine.initSession(context).catch((error: Error) => {
       console.error(`init session failed: ${error.message}`);
     });
+  }
+
+  onPageShow(): void {
+    const target = AppStorage.get<string>('pendingNavTarget');
+    if (target !== undefined && target !== null && target.length > 0) {
+      AppStorage.setOrCreate<string>('pendingNavTarget', '');
+      try {
+        const parsed = JSON.parse(target) as Record<string, Object>;
+        const page = parsed['page'] as string;
+        const id = parsed['id'] as number;
+        this.pathStack.pushPath({ name: page, param: id });
+      } catch (error) {
+        hilog.error(DOMAIN, 'NavRoute', `pending nav failed: ${(error as Error).message}`);
+      }
+    }
   }
 
   @Builder

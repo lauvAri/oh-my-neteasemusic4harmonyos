@@ -1,4 +1,4 @@
-import { promptAction } from '@kit.ArkUI';
+import { promptAction, router } from '@kit.ArkUI';
 import { SongApi } from '../../data/api/SongApi';
 import { SongRepositoryImpl } from '../../data/repository/SongRepositoryImpl';
 import { SongArtist, SongDetail, SongPrivilege } from '../../domain/model/SongModels';
@@ -48,6 +48,7 @@ export struct MusicPlayerCard {
   private engine: PlayerEngine = PlayerEngine.getInstance();
   private lyricScroller: Scroller = new Scroller();
   private lastScrolledLyricIndex: number = -2;
+  private navDebounceTimestamp: number = 0;
 
   aboutToAppear(): void {
     this.reloadCurrentSongData();
@@ -425,7 +426,7 @@ export struct MusicPlayerCard {
               .padding({ left: 18, right: 18 })
               .backgroundColor(CONTROL_GRAY)
               .onClick(() => {
-                this.loadSongDetail(this.songId);
+                this.loadSongDetail(this.getActiveSongId());
               })
           }
           .alignItems(HorizontalAlign.Center)
@@ -490,6 +491,19 @@ export struct MusicPlayerCard {
           .width('100%')
           .textAlign(TextAlign.Center)
           .margin({ top: 2 })
+          .onClick(() => {
+            if (this.songDetail && this.songDetail.ar.length > 0) {
+              const now = Date.now();
+              if (now - this.navDebounceTimestamp < 800) {
+                return;
+              }
+              this.navDebounceTimestamp = now;
+              const artistId = this.songDetail.ar[0].id;
+              AppStorage.setOrCreate('pendingNavTarget',
+                JSON.stringify({ page: 'ArtistDetailPage', id: artistId }));
+              router.back();
+            }
+          })
 
         Text(`专辑：${this.songDetail ? this.songDetail.al.name : ''}`)
           .fontSize(12)
@@ -498,6 +512,18 @@ export struct MusicPlayerCard {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
           .textAlign(TextAlign.Center)
+          .onClick(() => {
+            if (this.songDetail) {
+              const now = Date.now();
+              if (now - this.navDebounceTimestamp < 800) {
+                return;
+              }
+              this.navDebounceTimestamp = now;
+              AppStorage.setOrCreate('pendingNavTarget',
+                JSON.stringify({ page: 'AlbumDetailPage', id: this.songDetail.al.id }));
+              router.back();
+            }
+          })
       }
       .width('100%')
       .alignItems(HorizontalAlign.Center)

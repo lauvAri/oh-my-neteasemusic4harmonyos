@@ -1,9 +1,16 @@
 import common from '@ohos.app.ability.common';
 import { promptAction, router } from '@kit.ArkUI';
 import { AuthService, UserAccountResponse } from '../features/auth/service/AuthService';
+import { UserPlaylistApi } from '../features/mine/data/api/UserPlaylistApi';
+import { AlbumSublistApi } from '../features/mine/data/api/AlbumSublistApi';
+import { ArtistSublistApi } from '../features/mine/data/api/ArtistSublistApi';
+import { UserPlaylistItem, SubscribedAlbumItem, SubscribedArtistItem } from
+  '../features/mine/domain/model/MineModels';
 
 @Component
 export struct MinePage {
+  @Consume('pathStack') pathStack: NavPathStack;
+
   @State loading: boolean = false;
   @State loaded: boolean = false;
   @State errorText: string = '';
@@ -17,11 +24,24 @@ export struct MinePage {
   @State profileVipType: number = 0;
   @State accountVipType: number = 0;
 
+  @State likedPlaylistId: number = 0;
+  @State likedTrackCount: number = 0;
+  @State playlists: UserPlaylistItem[] = [];
+  @State subscribedAlbums: SubscribedAlbumItem[] = [];
+  @State subscribedArtists: SubscribedArtistItem[] = [];
+  @State contentLoading: boolean = false;
+
   private authService?: AuthService;
+  private userPlaylistApi?: UserPlaylistApi;
+  private albumSublistApi?: AlbumSublistApi;
+  private artistSublistApi?: ArtistSublistApi;
 
   aboutToAppear(): void {
     const context = getContext(this) as common.UIAbilityContext;
     this.authService = new AuthService(context);
+    this.userPlaylistApi = new UserPlaylistApi(context);
+    this.albumSublistApi = new AlbumSublistApi(context);
+    this.artistSublistApi = new ArtistSublistApi(context);
     this.loadAccountInfo();
   }
 
@@ -52,13 +72,50 @@ export struct MinePage {
       this.profileVipType = response.profile.vipType;
       this.accountVipType = response.account.vipType;
       this.loaded = true;
+      this.loadMyContent();
     } catch (error) {
-      await this.authService.clearCookie();
+      const errMsg = (error as Error).message ?? '';
+      if (errMsg.includes('301') || errMsg.includes('cookie') || errMsg.includes('登录')) {
+        await this.authService.clearCookie();
+      }
       this.loaded = false;
-      this.errorText = `账号信息获取失败：${(error as Error).message}`;
+      this.errorText = `账号信息获取失败：${errMsg}`;
       promptAction.showToast({ message: '账号信息获取失败' });
     } finally {
       this.loading = false;
+    }
+  }
+
+  private async loadMyContent(): Promise<void> {
+    if (this.userId === 0) {
+      return;
+    }
+    this.contentLoading = true;
+    try {
+      const results = await Promise.allSettled([
+        this.userPlaylistApi?.getUserPlaylist(this.userId) ?? Promise.reject(new Error('未初始化')),
+        this.albumSublistApi?.getAlbumSublist() ?? Promise.reject(new Error('未初始化')),
+        this.artistSublistApi?.getArtistSublist() ?? Promise.reject(new Error('未初始化'))
+      ]);
+
+      if (results[0].status === 'fulfilled') {
+        const playlistResp = results[0].value;
+        if (playlistResp.playlist.length > 0) {
+          this.likedPlaylistId = playlistResp.playlist[0].id;
+          this.likedTrackCount = playlistResp.playlist[0].trackCount;
+        }
+        this.playlists = playlistResp.playlist.slice(1);
+      }
+      if (results[1].status === 'fulfilled') {
+        this.subscribedAlbums = results[1].value.data;
+      }
+      if (results[2].status === 'fulfilled') {
+        this.subscribedArtists = results[2].value.data;
+      }
+    } catch (error) {
+      console.error(`加载我的内容失败: ${(error as Error).message}`);
+    } finally {
+      this.contentLoading = false;
     }
   }
 
@@ -83,6 +140,157 @@ export struct MinePage {
         .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
     .width('100%')
+  }
+
+  @Builder
+  private sectionHeader(title: string) {
+    Text(title)
+      .fontSize(17)
+      .fontWeight(FontWeight.Medium)
+      .fontColor($r('app.color.text_primary'))
+      .width('100%')
+      .margin({ top: 4 })
+  }
+
+  @Builder
+  private likedMusicCard() {
+    Row({ space: 12 }) {
+      Stack() {
+        Column()
+          .width(56)
+          .height(56)
+          .borderRadius(8)
+          .backgroundColor($r('app.color.surface_brand_tint'))
+        Text('♥')
+          .fontSize(24)
+          .fontColor($r('app.color.text_brand'))
+      }
+
+      Column({ space: 4 }) {
+        Text('我喜欢的音乐')
+          .fontSize(16)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_primary'))
+        Text(`${this.likedTrackCount} 首`)
+          .fontSize(13)
+          .fontColor($r('app.color.text_secondary'))
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+
+      Image($r('app.media.ic_arrow_back'))
+        .width(16)
+        .height(16)
+        .fillColor($r('app.color.text_tertiary'))
+        .rotate({ angle: 180 })
+    }
+    .width('100%')
+    .padding(12)
+    .backgroundColor($r('app.color.surface_info'))
+    .borderRadius(10)
+    .onClick(() => {
+      if (this.likedPlaylistId > 0) {
+        this.pathStack.pushPath({ name: 'PlaylistDetailPage', param: this.likedPlaylistId });
+        AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+      }
+    })
+  }
+
+  @Builder
+  private playlistGrid() {
+    Scroll() {
+      Row({ space: 12 }) {
+        ForEach(this.playlists, (item: UserPlaylistItem) => {
+          Column({ space: 6 }) {
+            Image(item.coverImgUrl)
+              .width(100)
+              .height(100)
+              .borderRadius(8)
+              .objectFit(ImageFit.Cover)
+            Text(item.name)
+              .fontSize(12)
+              .fontColor($r('app.color.text_secondary'))
+              .maxLines(2)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .width(100)
+          }
+          .onClick(() => {
+            this.pathStack.pushPath({ name: 'PlaylistDetailPage', param: item.id });
+            AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+          })
+        }, (item: UserPlaylistItem) => `${item.id}`)
+      }
+    }
+    .width('100%')
+    .scrollable(ScrollDirection.Horizontal)
+    .scrollBar(BarState.Off)
+  }
+
+  @Builder
+  private albumGrid() {
+    Scroll() {
+      Row({ space: 12 }) {
+        ForEach(this.subscribedAlbums, (item: SubscribedAlbumItem) => {
+          Column({ space: 6 }) {
+            Image(item.picUrl)
+              .width(100)
+              .height(100)
+              .borderRadius(8)
+              .objectFit(ImageFit.Cover)
+            Text(item.name)
+              .fontSize(12)
+              .fontColor($r('app.color.text_secondary'))
+              .maxLines(2)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .width(100)
+            Text(item.artist ? item.artist.name : '')
+              .fontSize(11)
+              .fontColor($r('app.color.text_quaternary'))
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .width(100)
+          }
+          .onClick(() => {
+            this.pathStack.pushPath({ name: 'AlbumDetailPage', param: item.id });
+            AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+          })
+        }, (item: SubscribedAlbumItem) => `${item.id}`)
+      }
+    }
+    .width('100%')
+    .scrollable(ScrollDirection.Horizontal)
+    .scrollBar(BarState.Off)
+  }
+
+  @Builder
+  private artistGrid() {
+    Scroll() {
+      Row({ space: 12 }) {
+        ForEach(this.subscribedArtists, (item: SubscribedArtistItem) => {
+          Column({ space: 6 }) {
+            Image(item.picUrl)
+              .width(80)
+              .height(80)
+              .borderRadius(40)
+              .objectFit(ImageFit.Cover)
+            Text(item.name)
+              .fontSize(12)
+              .fontColor($r('app.color.text_secondary'))
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .width(80)
+              .textAlign(TextAlign.Center)
+          }
+          .onClick(() => {
+            this.pathStack.pushPath({ name: 'ArtistDetailPage', param: item.id });
+            AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+          })
+        }, (item: SubscribedArtistItem) => `${item.id}`)
+      }
+    }
+    .width('100%')
+    .scrollable(ScrollDirection.Horizontal)
+    .scrollBar(BarState.Off)
   }
 
   build() {
@@ -164,6 +372,45 @@ export struct MinePage {
             .padding(14)
             .backgroundColor($r('app.color.surface_info'))
             .borderRadius(8)
+
+            if (this.contentLoading) {
+              Row({ space: 8 }) {
+                LoadingProgress()
+                  .width(20)
+                  .height(20)
+                Text('正在加载...')
+                  .fontSize(13)
+                  .fontColor($r('app.color.text_secondary'))
+              }
+              .width('100%')
+              .justifyContent(FlexAlign.Center)
+              .padding(20)
+            } else {
+              if (this.likedPlaylistId > 0) {
+                this.likedMusicCard();
+              }
+
+              if (this.playlists.length > 0) {
+                Column({ space: 10 }) {
+                  this.sectionHeader(`我的歌单 (${this.playlists.length})`);
+                  this.playlistGrid();
+                }
+              }
+
+              if (this.subscribedAlbums.length > 0) {
+                Column({ space: 10 }) {
+                  this.sectionHeader(`收藏的专辑 (${this.subscribedAlbums.length})`);
+                  this.albumGrid();
+                }
+              }
+
+              if (this.subscribedArtists.length > 0) {
+                Column({ space: 10 }) {
+                  this.sectionHeader(`关注的歌手 (${this.subscribedArtists.length})`);
+                  this.artistGrid();
+                }
+              }
+            }
 
             Row({ space: 10 }) {
               Button('刷新信息')
