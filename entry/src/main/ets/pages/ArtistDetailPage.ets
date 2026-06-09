@@ -133,6 +133,7 @@ export struct ArtistDetailPage {
         .backgroundColor($r('app.color.surface_info'))
         .onClick(() => {
           this.pathStack.pop();
+          AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
         })
 
         Text(this.artist ? this.artist.name : '歌手详情')

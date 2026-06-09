@@ -65,6 +65,7 @@ export struct AlbumDetailPage {
         .backgroundColor($r('app.color.surface_info'))
         .onClick(() => {
           this.pathStack.pop();
+          AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
         })
 
         Text(this.album ? this.album.name : '专辑详情')

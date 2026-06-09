@@ -74,6 +74,7 @@ struct MainTabs {
         const page = parsed['page'] as string;
         const id = parsed['id'] as number;
         this.pathStack.pushPath({ name: page, param: id });
+        AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
       } catch (error) {
         hilog.error(DOMAIN, 'NavRoute', `pending nav failed: ${(error as Error).message}`);
       }
