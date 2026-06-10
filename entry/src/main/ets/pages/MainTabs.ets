@@ -15,33 +15,47 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const DOMAIN = 0x0000;
 
+let mainPathStack: NavPathStack | null = null;
+
+function trackDepth(): void {
+  if (mainPathStack) {
+    AppStorage.setOrCreate<number>('mainNavDepth', mainPathStack.size());
+  }
+}
+
 @Builder
 function MainTabsRouteMap(name: string, param: Object) {
+
   if (name === 'SearchPage') {
     NavDestination() {
       SearchPage();
     }
     .hideTitleBar(true)
+    .onHidden(trackDepth)
   } else if (name === 'DailyRecommendPage') {
     NavDestination() {
       DailyRecommendPage();
     }
     .hideTitleBar(true)
+    .onHidden(trackDepth)
   } else if (name === 'PlaylistDetailPage') {
     NavDestination() {
       PlaylistDetailPage({ playlistId: param as number });
     }
     .hideTitleBar(true)
+    .onHidden(trackDepth)
   } else if (name === 'ArtistDetailPage') {
     NavDestination() {
       ArtistDetailPage({ artistId: param as number });
     }
     .hideTitleBar(true)
+    .onHidden(trackDepth)
   } else if (name === 'AlbumDetailPage') {
     NavDestination() {
       AlbumDetailPage({ albumId: param as number });
     }
     .hideTitleBar(true)
+    .onHidden(trackDepth)
   }
 }
 
@@ -57,6 +71,7 @@ struct MainTabs {
   private engine: PlayerEngine = PlayerEngine.getInstance();
 
   aboutToAppear(): void {
+    mainPathStack = this.pathStack;
     AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
     const context = getContext(this) as common.UIAbilityContext;
     HttpClient.setGlobalCookieProvider(new SessionStore(context));
