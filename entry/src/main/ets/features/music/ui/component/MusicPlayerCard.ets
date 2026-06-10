@@ -57,6 +57,7 @@ export struct MusicPlayerCard {
   @State private lyricLines: ParsedLyricLine[] = [];
   @State private secondaryMode: LyricSecondaryMode = LyricSecondaryMode.TRANSLATION;
   @State private showOnlyTranslation: boolean = true;
+  @State private showArtistPicker: boolean = false;
 
   private songRepository: SongRepositoryImpl = new SongRepositoryImpl(new SongApi());
   private readonly getSongDetailUseCase: GetSongDetailUseCase =
@@ -267,6 +268,23 @@ export struct MusicPlayerCard {
     return this.songDetail.ar.map((artist: SongArtist) => artist.name).join(' / ');
   }
 
+  private getArtistNamesWithHint(): string {
+    if (!this.songDetail || this.songDetail.ar.length === 0) {
+      return '未知歌手';
+    }
+    const names = this.songDetail.ar.map((artist: SongArtist) => artist.name).join(' / ');
+    if (this.songDetail.ar.length > 1) {
+      return `${names}  ›`;
+    }
+    return names;
+  }
+
+  private navigateToArtist(artistId: number): void {
+    AppStorage.setOrCreate('pendingNavTarget',
+      JSON.stringify({ page: 'ArtistDetailPage', id: artistId }));
+    router.back();
+  }
+
   private getAliasText(): string {
     if (!this.songDetail || this.songDetail.alia.length === 0) {
       return '';
@@ -329,7 +347,6 @@ export struct MusicPlayerCard {
       this.MediaStage()
 
       this.LyricModeRow()
-
       Slider({
         value: this.currentMs,
         min: 0,
@@ -454,6 +471,7 @@ export struct MusicPlayerCard {
     .width('100%')
     .height('100%')
     .alignItems(HorizontalAlign.Center)
+    .bindContentCover(this.showArtistPicker, this.ArtistPickerOverlay())
   }
 
   @Builder
@@ -537,6 +555,65 @@ export struct MusicPlayerCard {
     .onClick(() => {
       this.showOnlyTranslation = !this.showOnlyTranslation;
     })
+  }
+
+  @Builder
+  private ArtistPickerOverlay() {
+    Stack({ alignContent: Alignment.Center }) {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor('rgba(0, 0, 0, 0.55)')
+        .onClick(() => {
+          this.showArtistPicker = false;
+        })
+
+      if (this.songDetail) {
+        Column() {
+          Text('选择歌手')
+            .fontSize(15)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(TEXT_PRIMARY)
+            .width('100%')
+            .height(48)
+            .textAlign(TextAlign.Center)
+            .border({
+              width: { bottom: 1 },
+              color: 'rgba(255, 255, 255, 0.10)',
+              style: BorderStyle.Solid
+            })
+
+          Scroll() {
+            Column() {
+              ForEach(this.songDetail.ar, (artist: SongArtist) => {
+                Text(artist.name)
+                  .width('100%')
+                  .height(48)
+                  .fontSize(15)
+                  .fontColor(TEXT_PRIMARY)
+                  .textAlign(TextAlign.Center)
+                  .onClick(() => {
+                    this.showArtistPicker = false;
+                    this.navigateToArtist(artist.id);
+                  })
+              }, (artist: SongArtist) => `${artist.id}-${artist.name}`)
+            }
+            .width('100%')
+          }
+          .width('100%')
+          .constraintSize({ maxHeight: 360 })
+        }
+        .width('80%')
+        .constraintSize({ maxHeight: 480 })
+        .backgroundColor('#1f2937')
+        .borderRadius(16)
+        .padding({ top: 4, bottom: 4 })
+        .onClick(() => {
+        })
+      }
+    }
+    .width('100%')
+    .height('100%')
   }
 
   @Builder
@@ -627,7 +704,7 @@ export struct MusicPlayerCard {
             .textAlign(TextAlign.Center)
         }
 
-        Text(this.getArtistNames())
+        Text(this.getArtistNamesWithHint())
           .fontSize(14)
           .fontColor(TEXT_SECONDARY)
           .maxLines(1)
@@ -636,16 +713,18 @@ export struct MusicPlayerCard {
           .textAlign(TextAlign.Center)
           .margin({ top: 2 })
           .onClick(() => {
-            if (this.songDetail && this.songDetail.ar.length > 0) {
-              const now = Date.now();
-              if (now - this.navDebounceTimestamp < 800) {
-                return;
-              }
-              this.navDebounceTimestamp = now;
-              const artistId = this.songDetail.ar[0].id;
-              AppStorage.setOrCreate('pendingNavTarget',
-                JSON.stringify({ page: 'ArtistDetailPage', id: artistId }));
-              router.back();
+            if (!this.songDetail || this.songDetail.ar.length === 0) {
+              return;
+            }
+            const now = Date.now();
+            if (now - this.navDebounceTimestamp < 800) {
+              return;
+            }
+            this.navDebounceTimestamp = now;
+            if (this.songDetail.ar.length === 1) {
+              this.navigateToArtist(this.songDetail.ar[0].id);
+            } else {
+              this.showArtistPicker = true;
             }
           })
 
