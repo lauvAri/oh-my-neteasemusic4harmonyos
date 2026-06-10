@@ -65,4 +65,8 @@ export interface LyricResponse {
   lrc?: LyricSection;
   yrc?: LyricSection;
   tlyric?: LyricSection;
+  romalrc?: LyricSection;
+  ytlrc?: LyricSection;
+  yromalrc?: LyricSection;
+  klyric?: LyricSection;
 }

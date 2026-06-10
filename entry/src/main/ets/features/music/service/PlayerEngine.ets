@@ -3,7 +3,7 @@ import avSessionManager from '@ohos.multimedia.avsession';
 import common from '@ohos.app.ability.common';
 import { SongApi } from '../data/api/SongApi';
 import { SongRepositoryImpl } from '../data/repository/SongRepositoryImpl';
-import { LyricResponse } from '../domain/model/SongModels';
+import { LyricResponse, LyricSection } from '../domain/model/SongModels';
 import { Song } from '../domain/model/Song';
 import { GetSongDetailUseCase, SongDetailAggregate } from '../domain/usecase/GetSongDetailUseCase';
 import { GetSongPlayUrlUseCase } from '../domain/usecase/GetSongPlayUrlUseCase';
@@ -43,6 +43,10 @@ export class PlayerEngine {
     AppStorage.setOrCreate<string>('currentSongLyric', '');
     AppStorage.setOrCreate<string>('currentSongLyricError', '');
     AppStorage.setOrCreate<boolean>('currentSongLyricLoading', false);
+    AppStorage.setOrCreate<string>('currentSongTranslationLyric', '');
+    AppStorage.setOrCreate<string>('currentSongRomajiLyric', '');
+    AppStorage.setOrCreate<boolean>('currentSongHasTranslation', false);
+    AppStorage.setOrCreate<boolean>('currentSongHasRomaji', false);
     AppStorage.setOrCreate<Song[]>('playQueue', []);
     AppStorage.setOrCreate<number>('currentQueueIndex', -1);
   }
@@ -97,6 +101,18 @@ export class PlayerEngine {
     AppStorage.setOrCreate<string>('currentSongLyric', lyric);
     AppStorage.setOrCreate<string>('currentSongLyricError', errorText);
     AppStorage.setOrCreate<boolean>('currentSongLyricLoading', loading);
+    AppStorage.setOrCreate<string>('currentSongTranslationLyric', '');
+    AppStorage.setOrCreate<string>('currentSongRomajiLyric', '');
+    AppStorage.setOrCreate<boolean>('currentSongHasTranslation', false);
+    AppStorage.setOrCreate<boolean>('currentSongHasRomaji', false);
+  }
+
+  private setLyricExtras(translationLyric: string, romajiLyric: string,
+    hasTranslation: boolean, hasRomaji: boolean): void {
+    AppStorage.setOrCreate<string>('currentSongTranslationLyric', translationLyric);
+    AppStorage.setOrCreate<string>('currentSongRomajiLyric', romajiLyric);
+    AppStorage.setOrCreate<boolean>('currentSongHasTranslation', hasTranslation);
+    AppStorage.setOrCreate<boolean>('currentSongHasRomaji', hasRomaji);
   }
 
   private setQueueState(songs: Song[], index: number): void {
@@ -265,6 +281,13 @@ export class PlayerEngine {
     return '';
   }
 
+  private resolveSectionLyric(section: LyricSection | undefined): string {
+    if (section === undefined) {
+      return '';
+    }
+    return section.lyric;
+  }
+
   private normalizeLyric(rawLyric: string): string {
     const lines = rawLyric.split('\n');
     const normalized: string[] = [];
@@ -295,6 +318,11 @@ export class PlayerEngine {
       const rawLyric = this.resolveRawLyric(response);
       const lyricText = this.normalizeLyric(rawLyric);
       this.setLyricState(rawLyric, lyricText.length > 0 ? lyricText : '暂无歌词', '', false);
+      const translationRaw = this.resolveSectionLyric(response.tlyric);
+      const romajiRaw = this.resolveSectionLyric(response.romalrc);
+      const hasTranslation = translationRaw.trim().length > 0;
+      const hasRomaji = romajiRaw.trim().length > 0;
+      this.setLyricExtras(translationRaw, romajiRaw, hasTranslation, hasRomaji);
     } catch (error) {
       if (requestVersion !== this.lyricRequestVersion || (AppStorage.get<number>('selectedSongId') ?? 0) !== songId) {
         return;

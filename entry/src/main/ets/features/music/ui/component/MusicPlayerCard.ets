@@ -8,6 +8,14 @@ import { PlayerEngine } from '../../service/PlayerEngine';
 interface ParsedLyricLine {
   timeMs: number;
   text: string;
+  translation: string;
+  romaji: string;
+}
+
+enum LyricSecondaryMode {
+  TRANSLATION = 0,
+  ROMAJI = 1,
+  ORIGINAL = 2
 }
 
 const TEXT_PRIMARY: string = '#ffffff';
@@ -18,6 +26,8 @@ const ERROR_COLOR: string = '#ffb4b4';
 const CONTROL_GRAY: string = 'rgba(128, 128, 128, 0.30)';
 const PLAY_BUTTON_GRAY: string = 'rgba(128, 128, 128, 0.60)';
 const SLIDER_TRACK_GRAY: string = 'rgba(128, 128, 128, 0.30)';
+const TOGGLE_BORDER_COLOR: string = 'rgba(255, 255, 255, 0.40)';
+const TOGGLE_BORDER_COLOR_OFF: string = 'rgba(255, 255, 255, 0.20)';
 
 @Component
 export struct MusicPlayerCard {
@@ -31,6 +41,10 @@ export struct MusicPlayerCard {
   @StorageLink('currentSongLyric') @Watch('onLyricStorageChanged') private storedLyricText: string = '';
   @StorageLink('currentSongLyricError') private storedLyricErrorText: string = '';
   @StorageLink('currentSongLyricLoading') private storedLyricLoading: boolean = false;
+  @StorageLink('currentSongTranslationLyric') @Watch('onLyricStorageChanged') private storedTranslationText: string = '';
+  @StorageLink('currentSongRomajiLyric') @Watch('onLyricStorageChanged') private storedRomajiText: string = '';
+  @StorageLink('currentSongHasTranslation') @Watch('onLyricStorageChanged') private hasTranslation: boolean = false;
+  @StorageLink('currentSongHasRomaji') @Watch('onLyricStorageChanged') private hasRomaji: boolean = false;
 
   @State private loading: boolean = false;
   @State private statusText: string = '点击播放按钮开始';
@@ -41,6 +55,8 @@ export struct MusicPlayerCard {
   @State private sliderValue: number = 0;
   @State @Watch('onShowLyricChanged') private showLyric: boolean = false;
   @State private lyricLines: ParsedLyricLine[] = [];
+  @State private secondaryMode: LyricSecondaryMode = LyricSecondaryMode.TRANSLATION;
+  @State private showOnlyTranslation: boolean = true;
 
   private songRepository: SongRepositoryImpl = new SongRepositoryImpl(new SongApi());
   private readonly getSongDetailUseCase: GetSongDetailUseCase =
@@ -104,32 +120,44 @@ export struct MusicPlayerCard {
   }
 
   private refreshParsedLyrics(): void {
-    this.lyricLines = this.parseLyricLines(this.rawLyricText);
+    this.lyricLines = this.parseLyricLines(this.rawLyricText,
+      this.storedTranslationText, this.storedRomajiText);
     if (this.lyricLines.length === 0 && this.storedLyricText.length > 0) {
       this.lyricLines = this.storedLyricText.split('\n').map((line: string) => {
         const item: ParsedLyricLine = {
           timeMs: -1,
-          text: line
+          text: line,
+          translation: '',
+          romaji: ''
         };
         return item;
       });
     }
   }
 
-  private parseLyricLines(rawLyric: string): ParsedLyricLine[] {
+  private parseTimeToMs(timeMatch: RegExpMatchArray): number {
+    const minutes = Number.parseInt(timeMatch[1], 10);
+    const seconds = Number.parseInt(timeMatch[2], 10);
+    const millisecondText = timeMatch[3] === undefined ? '0' : timeMatch[3];
+    const milliseconds = Number.parseInt(millisecondText.padEnd(3, '0'), 10);
+    return minutes * 60000 + seconds * 1000 + milliseconds;
+  }
+
+  private parseLyricMap(rawLyric: string): Map<number, string> {
+    const map = new Map<number, string>();
+    if (rawLyric.length === 0) {
+      return map;
+    }
     const lines = rawLyric.split('\n');
-    const parsed: ParsedLyricLine[] = [];
     lines.forEach((line: string) => {
       const trimmed = line.trim();
       if (trimmed.length === 0 || trimmed.startsWith('{')) {
         return;
       }
-
       const timeMatch = trimmed.match(/\[(\d{2}):(\d{2})(?:\.(\d{1,3}))?\]/);
       if (timeMatch === null) {
         return;
       }
-
       const text = trimmed
         .replace(/\[[^\]]*\]/g, '')
         .replace(/\([^)]*\)/g, '')
@@ -137,14 +165,38 @@ export struct MusicPlayerCard {
       if (text.length === 0) {
         return;
       }
+      map.set(this.parseTimeToMs(timeMatch), text);
+    });
+    return map;
+  }
 
-      const minutes = Number.parseInt(timeMatch[1], 10);
-      const seconds = Number.parseInt(timeMatch[2], 10);
-      const millisecondText = timeMatch[3] === undefined ? '0' : timeMatch[3];
-      const milliseconds = Number.parseInt(millisecondText.padEnd(3, '0'), 10);
+  private parseLyricLines(rawLyric: string, translationLyric: string, romajiLyric: string): ParsedLyricLine[] {
+    const lines = rawLyric.split('\n');
+    const translationMap = this.parseLyricMap(translationLyric);
+    const romajiMap = this.parseLyricMap(romajiLyric);
+    const parsed: ParsedLyricLine[] = [];
+    lines.forEach((line: string) => {
+      const trimmed = line.trim();
+      if (trimmed.length === 0 || trimmed.startsWith('{')) {
+        return;
+      }
+      const timeMatch = trimmed.match(/\[(\d{2}):(\d{2})(?:\.(\d{1,3}))?\]/);
+      if (timeMatch === null) {
+        return;
+      }
+      const text = trimmed
+        .replace(/\[[^\]]*\]/g, '')
+        .replace(/\([^)]*\)/g, '')
+        .trim();
+      if (text.length === 0) {
+        return;
+      }
+      const timeMs = this.parseTimeToMs(timeMatch);
       const item: ParsedLyricLine = {
-        timeMs: minutes * 60000 + seconds * 1000 + milliseconds,
-        text: text
+        timeMs: timeMs,
+        text: text,
+        translation: translationMap.get(timeMs) ?? '',
+        romaji: romajiMap.get(timeMs) ?? ''
       };
       parsed.push(item);
     });
@@ -186,6 +238,7 @@ export struct MusicPlayerCard {
   }
 
   private onLyricStorageChanged(): void {
+    this.resetLyricMode();
     this.refreshParsedLyrics();
     this.syncLyricScroll();
   }
@@ -200,6 +253,11 @@ export struct MusicPlayerCard {
     this.statusText = '播放中';
     this.loadSongDetail(this.selectedSongId);
     this.refreshParsedLyrics();
+  }
+
+  private resetLyricMode(): void {
+    this.secondaryMode = LyricSecondaryMode.TRANSLATION;
+    this.showOnlyTranslation = true;
   }
 
   private getArtistNames(): string {
@@ -269,6 +327,8 @@ export struct MusicPlayerCard {
   build() {
     Column() {
       this.MediaStage()
+
+      this.LyricModeRow()
 
       Slider({
         value: this.currentMs,
@@ -394,6 +454,89 @@ export struct MusicPlayerCard {
     .width('100%')
     .height('100%')
     .alignItems(HorizontalAlign.Center)
+  }
+
+  @Builder
+  private LyricModeRow() {
+    Row() {
+      if (this.hasTranslation && this.hasRomaji) {
+        this.TranslationRomajiToggle()
+      } else if (this.hasTranslation) {
+        this.TranslationOnlyToggle()
+      } else {
+        Blank()
+      }
+      Blank()
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16 })
+    .margin({ top: 2 })
+  }
+
+  @Builder
+  private TranslationRomajiToggle() {
+    Row({ space: 6 }) {
+      Text('译')
+        .fontSize(12)
+        .fontWeight(this.secondaryMode === LyricSecondaryMode.TRANSLATION ? FontWeight.Medium : FontWeight.Regular)
+        .fontColor(this.secondaryMode === LyricSecondaryMode.TRANSLATION ? TEXT_PRIMARY : TEXT_MUTED)
+        .decoration({ type: TextDecorationType.None })
+      Text('/')
+        .fontSize(12)
+        .fontColor(TEXT_MUTED)
+      Text('音')
+        .fontSize(12)
+        .fontWeight(this.secondaryMode === LyricSecondaryMode.ROMAJI ? FontWeight.Medium : FontWeight.Regular)
+        .fontColor(this.secondaryMode === LyricSecondaryMode.ROMAJI ? TEXT_PRIMARY : TEXT_MUTED)
+        .decoration({ type: TextDecorationType.None })
+    }
+    .height(24)
+    .padding({ left: 10, right: 10 })
+    .borderRadius(12)
+    .border({
+      width: 1,
+      color: TOGGLE_BORDER_COLOR,
+      style: BorderStyle.Solid
+    })
+    .backgroundColor('rgba(0, 0, 0, 0)')
+    .onClick(() => {
+      switch (this.secondaryMode) {
+        case LyricSecondaryMode.TRANSLATION:
+          this.secondaryMode = LyricSecondaryMode.ROMAJI;
+          break;
+        case LyricSecondaryMode.ROMAJI:
+          this.secondaryMode = LyricSecondaryMode.ORIGINAL;
+          break;
+        default:
+          this.secondaryMode = LyricSecondaryMode.TRANSLATION;
+      }
+    })
+  }
+
+  @Builder
+  private TranslationOnlyToggle() {
+    Row() {
+      Text('译')
+        .fontSize(12)
+        .fontWeight(this.showOnlyTranslation ? FontWeight.Medium : FontWeight.Regular)
+        .fontColor(this.showOnlyTranslation ? TEXT_PRIMARY : TEXT_MUTED)
+        .decoration({
+          type: this.showOnlyTranslation ? TextDecorationType.None : TextDecorationType.LineThrough,
+          color: TEXT_MUTED
+        })
+    }
+    .height(24)
+    .padding({ left: 10, right: 10 })
+    .borderRadius(12)
+    .border({
+      width: 1,
+      color: this.showOnlyTranslation ? TOGGLE_BORDER_COLOR : TOGGLE_BORDER_COLOR_OFF,
+      style: BorderStyle.Solid
+    })
+    .backgroundColor('rgba(0, 0, 0, 0)')
+    .onClick(() => {
+      this.showOnlyTranslation = !this.showOnlyTranslation;
+    })
   }
 
   @Builder
@@ -571,16 +714,38 @@ export struct MusicPlayerCard {
       } else {
         ForEach(this.lyricLines, (line: ParsedLyricLine, index: number) => {
           ListItem() {
-            Text(line.text)
-              .fontSize(this.isActiveLyricLine(index) ? 19 : 15)
-              .fontWeight(this.isActiveLyricLine(index) ? FontWeight.Medium : FontWeight.Regular)
-              .fontColor(this.isActiveLyricLine(index) ? TEXT_PRIMARY : TEXT_TERTIARY)
-              .lineHeight(this.isActiveLyricLine(index) ? 30 : 26)
-              .textAlign(TextAlign.Center)
-              .width('100%')
-              .padding({ left: 12, right: 12 })
+            Column({ space: 4 }) {
+              Text(line.text)
+                .fontSize(this.isActiveLyricLine(index) ? 19 : 15)
+                .fontWeight(this.isActiveLyricLine(index) ? FontWeight.Medium : FontWeight.Regular)
+                .fontColor(this.isActiveLyricLine(index) ? TEXT_PRIMARY : TEXT_TERTIARY)
+                .lineHeight(this.isActiveLyricLine(index) ? 30 : 26)
+                .textAlign(TextAlign.Center)
+                .width('100%')
+                .padding({ left: 12, right: 12 })
+              if (this.shouldShowTranslation() && line.translation.length > 0) {
+                Text(line.translation)
+                  .fontSize(13)
+                  .fontColor(TEXT_TERTIARY)
+                  .lineHeight(20)
+                  .textAlign(TextAlign.Center)
+                  .width('100%')
+                  .padding({ left: 12, right: 12 })
+              }
+              if (this.shouldShowRomaji() && line.romaji.length > 0) {
+                Text(line.romaji)
+                  .fontSize(12)
+                  .fontColor(TEXT_MUTED)
+                  .lineHeight(18)
+                  .textAlign(TextAlign.Center)
+                  .width('100%')
+                  .padding({ left: 12, right: 12 })
+              }
+            }
+            .alignItems(HorizontalAlign.Center)
+            .width('100%')
           }
-        }, (line: ParsedLyricLine, index: number) => `${index}-${line.timeMs}`)
+        }, (line: ParsedLyricLine, index: number) => `${index}-${line.timeMs}-${line.text}`)
       }
 
       ListItem() {
@@ -598,5 +763,19 @@ export struct MusicPlayerCard {
       this.showLyric = false;
       this.lastScrolledLyricIndex = -2;
     })
+  }
+
+  private shouldShowTranslation(): boolean {
+    if (!this.hasTranslation) {
+      return false;
+    }
+    if (this.hasRomaji) {
+      return this.secondaryMode === LyricSecondaryMode.TRANSLATION;
+    }
+    return this.showOnlyTranslation;
+  }
+
+  private shouldShowRomaji(): boolean {
+    return this.hasRomaji && this.secondaryMode === LyricSecondaryMode.ROMAJI;
   }
 }
