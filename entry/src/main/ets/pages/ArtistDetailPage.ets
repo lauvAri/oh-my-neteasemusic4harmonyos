@@ -5,7 +5,6 @@ import { ArtistInfo, ArtistAlbumItem } from '../features/music/artist/domain/mod
 import { Song } from '../features/music/domain/model/Song';
 import { SongList, SongListCallbacks } from '../features/music/ui/component/SongList';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
-import { ExpandableText } from '../common/ui/ExpandableText';
 
 @Component
 export struct ArtistDetailPage {
@@ -19,7 +18,7 @@ export struct ArtistDetailPage {
   @State albums: ArtistAlbumItem[] = [];
   @State songsError: string = '';
   @State albumsError: string = '';
-  @State currentTab: number = 0;
+  @State currentTab: number = 1;
 
   private artistApi?: ArtistApi;
   private engine: PlayerEngine = PlayerEngine.getInstance();
@@ -195,30 +194,45 @@ export struct ArtistDetailPage {
           .width('100%')
           .padding({ left: 16, right: 16, top: 4, bottom: 4 })
 
-          // Expandable description
-          if (this.artist.briefDesc.length > 0) {
-            ExpandableText({
-              content: this.artist.briefDesc,
-              maxLines: 2,
-              fontSize: 13,
-              fontColor: $r('app.color.text_secondary'),
-              brandColor: $r('app.color.text_brand'),
-              constraintWidth: 311
-            })
-            .width('100%')
-            .padding({ left: 16, right: 16, top: 4, bottom: 8 })
-          }
-
           // Tab bar
-          Row({ space: 32 }) {
-            this.tabButton('热门歌曲', 0);
-            this.tabButton('专辑', 1);
+          Row({ space: 24 }) {
+            this.tabButton('个人信息', 0);
+            this.tabButton('热门歌曲', 1);
+            this.tabButton('专辑', 2);
           }
           .width('100%')
           .padding({ left: 16, right: 16, top: 8, bottom: 0 })
 
           // Tab content
           Tabs({ index: this.currentTab, controller: this.tabsController }) {
+            TabContent() {
+              if (this.artist === null || this.artist.briefDesc.length === 0) {
+                Column() {
+                  Text('暂无个人信息')
+                    .fontSize(14)
+                    .fontColor($r('app.color.text_quaternary'))
+                }
+                .width('100%')
+                .height('100%')
+                .justifyContent(FlexAlign.Center)
+              } else {
+                Scroll() {
+                  Column() {
+                    Text(this.artist.briefDesc)
+                      .fontSize(14)
+                      .fontColor($r('app.color.text_secondary'))
+                      .lineHeight(24)
+                      .width('100%')
+                    Blank().height(80);
+                  }
+                  .width('100%')
+                  .padding({ left: 16, right: 16, top: 12, bottom: 16 })
+                }
+                .width('100%')
+                .layoutWeight(1)
+              }
+            }
+
             TabContent() {
               if (this.songs.length === 0) {
                 Column() {
@@ -273,7 +287,7 @@ export struct ArtistDetailPage {
                         Text(item.name)
                           .fontSize(12)
                           .fontColor($r('app.color.text_primary'))
-                          .maxLines(2)
+                          .maxLines(1)
                           .textOverflow({ overflow: TextOverflow.Ellipsis })
                           .width(100)
                         Text(this.formatPublishTime(item.publishTime))
