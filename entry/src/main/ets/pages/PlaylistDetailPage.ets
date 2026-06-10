@@ -5,6 +5,7 @@ import { PlaylistDetailApi } from '../features/music/playlist/data/api/PlaylistD
 import { Song } from '../features/music/domain/model/Song';
 import { SongList, SongListCallbacks } from '../features/music/ui/component/SongList';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
+import { SUBPAGE_BOTTOM_PADDING_VP } from '../common/ui/PageLayout';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const DOMAIN = 0x0000;
@@ -209,6 +210,6 @@ export struct PlaylistDetailPage {
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
+    .padding({ left: 16, right: 16, top: 16, bottom: SUBPAGE_BOTTOM_PADDING_VP })
   }
 }

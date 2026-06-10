@@ -1,6 +1,7 @@
 import { HomeBanner } from '../features/banner/ui/component/HomeBanner';
 import { RecommendPlaylistRow } from '../features/music/playlist/ui/component/RecommendPlaylistRow';
 import { ToplistRow } from '../features/music/playlist/ui/component/ToplistRow';
+import { TAB_PAGE_BOTTOM_PADDING_VP } from '../common/ui/PageLayout';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const DOMAIN = 0x0000;
@@ -68,12 +69,10 @@ export struct HomePage {
         })
 
         ToplistRow();
-
-        Blank().height(80);
       }
       .width('100%')
       .alignItems(HorizontalAlign.Start)
-      .padding({ left: 16, right: 16, top: 16, bottom: 16 })
+      .padding({ left: 16, right: 16, top: 16, bottom: TAB_PAGE_BOTTOM_PADDING_VP })
     }
     .width('100%')
     .height('100%')

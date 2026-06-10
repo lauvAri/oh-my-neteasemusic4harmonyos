@@ -6,6 +6,7 @@ import { AlbumSublistApi } from '../features/mine/data/api/AlbumSublistApi';
 import { ArtistSublistApi } from '../features/mine/data/api/ArtistSublistApi';
 import { UserPlaylistItem, SubscribedAlbumItem, SubscribedArtistItem } from
   '../features/mine/domain/model/MineModels';
+import { TAB_PAGE_BOTTOM_PADDING_VP } from '../common/ui/PageLayout';
 
 @Component
 export struct MinePage {
@@ -444,11 +445,9 @@ export struct MinePage {
           .height(220)
           .justifyContent(FlexAlign.Center)
         }
-
-        Blank().height(80);
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: 16, bottom: 16 })
+      .padding({ left: 16, right: 16, top: 16, bottom: TAB_PAGE_BOTTOM_PADDING_VP })
     }
     .width('100%')
     .height('100%')

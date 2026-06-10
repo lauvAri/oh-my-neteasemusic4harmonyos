@@ -5,6 +5,7 @@ import { AlbumInfo } from '../features/music/album/domain/model/AlbumModels';
 import { Song } from '../features/music/domain/model/Song';
 import { SongList, SongListCallbacks } from '../features/music/ui/component/SongList';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
+import { SUBPAGE_BOTTOM_PADDING_VP } from '../common/ui/PageLayout';
 
 @Component
 export struct AlbumDetailPage {
@@ -190,7 +191,7 @@ export struct AlbumDetailPage {
               })
             }
 
-            Blank().height(80);
+            Blank().height(SUBPAGE_BOTTOM_PADDING_VP);
           }
           .width('100%')
           .padding({ left: 16, right: 16, top: 12, bottom: 16 })
@@ -249,6 +250,6 @@ export struct AlbumDetailPage {
     }
     .width('100%')
     .height('100%')
-    .padding({ top: 16 })
+    .padding({ top: 16, bottom: SUBPAGE_BOTTOM_PADDING_VP })
   }
 }

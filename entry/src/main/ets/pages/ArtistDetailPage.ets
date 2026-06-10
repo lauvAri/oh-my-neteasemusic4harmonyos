@@ -5,6 +5,7 @@ import { ArtistInfo, ArtistAlbumItem } from '../features/music/artist/domain/mod
 import { Song } from '../features/music/domain/model/Song';
 import { SongList, SongListCallbacks } from '../features/music/ui/component/SongList';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
+import { SUBPAGE_BOTTOM_PADDING_VP } from '../common/ui/PageLayout';
 
 @Component
 export struct ArtistDetailPage {
@@ -223,10 +224,9 @@ export struct ArtistDetailPage {
                       .fontColor($r('app.color.text_secondary'))
                       .lineHeight(24)
                       .width('100%')
-                    Blank().height(80);
                   }
                   .width('100%')
-                  .padding({ left: 16, right: 16, top: 12, bottom: 16 })
+                  .padding({ left: 16, right: 16, top: 12, bottom: SUBPAGE_BOTTOM_PADDING_VP })
                 }
                 .width('100%')
                 .layoutWeight(1)
@@ -254,7 +254,7 @@ export struct ArtistDetailPage {
                         }
                       } as SongListCallbacks
                     })
-                    Blank().height(80);
+                    Blank().height(SUBPAGE_BOTTOM_PADDING_VP);
                   }
                   .width('100%')
                 }
@@ -304,7 +304,7 @@ export struct ArtistDetailPage {
                     }, (item: ArtistAlbumItem) => `${item.id}`)
                   }
                   .width('100%')
-                  .padding({ left: 16, right: 16, top: 8, bottom: 16 })
+                  .padding({ left: 16, right: 16, top: 8, bottom: SUBPAGE_BOTTOM_PADDING_VP })
                 }
                 .width('100%')
                 .layoutWeight(1)

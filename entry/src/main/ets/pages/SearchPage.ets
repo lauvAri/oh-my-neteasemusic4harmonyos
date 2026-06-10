@@ -7,6 +7,7 @@ import { SearchAlbumResultList } from '../features/search/ui/component/SearchAlb
 import { SearchArtistResultList } from '../features/search/ui/component/SearchArtistResultList';
 import { SearchPlaylistResultList } from '../features/search/ui/component/SearchPlaylistResultList';
 import { SearchApi } from '../features/search/data/api/SearchApi';
+import { SUBPAGE_BOTTOM_PADDING_VP } from '../common/ui/PageLayout';
 import {
   SearchType,
   SearchSongItem,
@@ -389,6 +390,6 @@ export struct SearchPage {
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
+    .padding({ left: 16, right: 16, top: 16, bottom: SUBPAGE_BOTTOM_PADDING_VP })
   }
 }
