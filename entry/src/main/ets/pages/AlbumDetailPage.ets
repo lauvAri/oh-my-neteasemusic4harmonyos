@@ -15,8 +15,7 @@ export struct AlbumDetailPage {
   @State errorText: string = '';
   @State album: AlbumInfo | null = null;
   @State songs: Song[] = [];
-  @State currentTab: number = 1;
-  private tabsController: TabsController = new TabsController();
+  @State showDescDialog: boolean = false;
 
   private albumApi?: AlbumApi;
   private engine: PlayerEngine = PlayerEngine.getInstance();
@@ -51,23 +50,9 @@ export struct AlbumDetailPage {
     router.pushUrl({ url: 'pages/MusicPlayerPage', params: { songId: song.id } });
   }
 
-  @Builder
-  private tabButton(title: string, index: number) {
-    Text(title)
-      .fontSize(15)
-      .fontWeight(this.currentTab === index ? FontWeight.Medium : FontWeight.Regular)
-      .fontColor(this.currentTab === index ? $r('app.color.text_brand') : $r('app.color.text_secondary'))
-      .padding({ bottom: 8 })
-      .borderWidth({ bottom: 2 })
-      .borderColor(this.currentTab === index ? $r('app.color.text_brand') : Color.Transparent)
-      .onClick(() => {
-        this.currentTab = index;
-        this.tabsController.changeIndex(index);
-      })
-  }
-
   build() {
     Column() {
+      // Top bar
       Row() {
         Button() {
           Image($r('app.media.ic_arrow_back'))
@@ -109,137 +94,116 @@ export struct AlbumDetailPage {
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
       } else if (this.album) {
-        Column() {
-          // Fixed album header
-          Row({ space: 16 }) {
-            Image(this.album.picUrl)
-              .width(120)
-              .height(120)
-              .borderRadius(12)
-              .objectFit(ImageFit.Cover)
-              .alt($r('app.media.startIcon'))
-              .shadow({ radius: 12, color: 'rgba(0,0,0,0.12)', offsetX: 0, offsetY: 4 })
+        Scroll() {
+          Column({ space: 16 }) {
+            // Album header card
+            Row({ space: 16 }) {
+              Image(this.album.picUrl)
+                .width(120)
+                .height(120)
+                .borderRadius(12)
+                .objectFit(ImageFit.Cover)
+                .alt($r('app.media.startIcon'))
+                .shadow({ radius: 12, color: 'rgba(0,0,0,0.12)', offsetX: 0, offsetY: 4 })
 
-            Column({ space: 8 }) {
-              Text(this.album.name)
-                .fontSize(20)
+              Column({ space: 8 }) {
+                Text(this.album.name)
+                  .fontSize(20)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor($r('app.color.text_primary'))
+                  .maxLines(2)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+                Text(this.album.artist ? this.album.artist.name : '未知歌手')
+                  .fontSize(14)
+                  .fontColor($r('app.color.text_brand'))
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .onClick(() => {
+                    if (this.album && this.album.artist) {
+                      this.pathStack.pushPath({ name: 'ArtistDetailPage', param: this.album.artist.id });
+                      AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+                    }
+                  })
+
+                Text(`${this.album.size} 首`)
+                  .fontSize(13)
+                  .fontColor($r('app.color.text_quaternary'))
+              }
+              .layoutWeight(1)
+              .alignItems(HorizontalAlign.Start)
+            }
+            .width('100%')
+
+            // Description row (网易云风格: 截断显示 + ">" 箭头)
+            if (this.album.description.length > 0) {
+              Row() {
+                Text(this.album.description)
+                  .fontSize(13)
+                  .fontColor($r('app.color.text_secondary'))
+                  .maxLines(2)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .layoutWeight(1)
+                  .lineHeight(20)
+
+                Text('>')
+                  .fontSize(16)
+                  .fontColor($r('app.color.text_quaternary'))
+                  .margin({ left: 8 })
+              }
+              .width('100%')
+              .padding({ top: 4, bottom: 4 })
+              .onClick(() => {
+                this.showDescDialog = true;
+              })
+            }
+
+            // Song list section header with accent bar
+            Row({ space: 8 }) {
+              Blank()
+                .width(3)
+                .height(16)
+                .backgroundColor($r('app.color.text_brand'))
+                .borderRadius(2)
+              Text('歌曲列表')
+                .fontSize(16)
                 .fontWeight(FontWeight.Medium)
                 .fontColor($r('app.color.text_primary'))
-                .maxLines(2)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
+            }
+            .width('100%')
 
-              Text(this.album.artist ? this.album.artist.name : '未知歌手')
+            if (this.songs.length === 0) {
+              Text('暂无歌曲信息')
                 .fontSize(14)
-                .fontColor($r('app.color.text_brand'))
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-                .onClick(() => {
-                  if (this.album && this.album.artist) {
-                    this.pathStack.pushPath({ name: 'ArtistDetailPage', param: this.album.artist.id });
-                    AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
-                  }
-                })
-
-              Text(`${this.album.size} 首`)
-                .fontSize(13)
                 .fontColor($r('app.color.text_quaternary'))
+                .width('100%')
+                .textAlign(TextAlign.Center)
+                .padding(20)
+            } else {
+              SongList({
+                songs: this.songs,
+                callbacks: {
+                  onSongClick: (song: Song, index: number) => {
+                    this.playSong(song, index);
+                  }
+                } as SongListCallbacks
+              })
             }
-            .layoutWeight(1)
-            .alignItems(HorizontalAlign.Start)
+
+            Blank().height(80);
           }
           .width('100%')
-
-          // Tab bar
-          Row({ space: 24 }) {
-            this.tabButton('简介', 0);
-            this.tabButton('歌曲列表', 1);
-          }
-          .width('100%')
-          .padding({ left: 16, right: 16, top: 12, bottom: 0 })
-
-          // Tab content
-          Tabs({ index: this.currentTab, controller: this.tabsController }) {
-            TabContent() {
-              // 简介 tab
-              if (this.album.description.length === 0) {
-                Column() {
-                  Text('暂无简介')
-                    .fontSize(14)
-                    .fontColor($r('app.color.text_quaternary'))
-                }
-                .width('100%')
-                .height('100%')
-                .justifyContent(FlexAlign.Center)
-              } else {
-                Scroll() {
-                  Column() {
-                    Text(this.album.description)
-                      .fontSize(14)
-                      .fontColor($r('app.color.text_secondary'))
-                      .lineHeight(24)
-                      .width('100%')
-                    Blank().height(80);
-                  }
-                  .width('100%')
-                  .padding({ left: 16, right: 16, top: 12, bottom: 16 })
-                }
-                .width('100%')
-                .layoutWeight(1)
-              }
-            }
-
-            TabContent() {
-              // 歌曲列表 tab
-              if (this.songs.length === 0) {
-                Column() {
-                  Text('暂无歌曲信息')
-                    .fontSize(14)
-                    .fontColor($r('app.color.text_quaternary'))
-                }
-                .width('100%')
-                .height('100%')
-                .justifyContent(FlexAlign.Center)
-              } else {
-                Scroll() {
-                  Column() {
-                    Row({ space: 8 }) {
-                      Blank()
-                        .width(3)
-                        .height(16)
-                        .backgroundColor($r('app.color.text_brand'))
-                        .borderRadius(2)
-                      Text('歌曲列表')
-                        .fontSize(16)
-                        .fontWeight(FontWeight.Medium)
-                        .fontColor($r('app.color.text_primary'))
-                    }
-                    .width('100%')
-
-                    SongList({
-                      songs: this.songs,
-                      callbacks: {
-                        onSongClick: (song: Song, index: number) => {
-                          this.playSong(song, index);
-                        }
-                      } as SongListCallbacks
-                    })
-                    Blank().height(80);
-                  }
-                  .width('100%')
-                }
-                .width('100%')
-                .layoutWeight(1)
-              }
-            }
-          }
-          .barHeight(0)
-          .layoutWeight(1)
-          .onChange((index: number) => {
-            this.currentTab = index;
-          })
+          .padding({ left: 16, right: 16, top: 12, bottom: 16 })
         }
         .layoutWeight(1)
-        .padding({ left: 16, right: 16, top: 12, bottom: 0 })
+        .bindSheet(this.showDescDialog, this.descSheet(), {
+          height: '60%',
+          showClose: false,
+          dragBar: true,
+          onDisappear: () => {
+            this.showDescDialog = false;
+          }
+        })
       } else {
         Column({ space: 12 }) {
           Text(this.errorText)
@@ -258,5 +222,33 @@ export struct AlbumDetailPage {
     }
     .width('100%')
     .height('100%')
+  }
+
+  @Builder
+  private descSheet() {
+    Column() {
+      // Title
+      Text('专辑简介')
+        .fontSize(17)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.text_primary'))
+        .width('100%')
+        .textAlign(TextAlign.Center)
+        .padding({ top: 4, bottom: 16 })
+
+      // Scrollable description
+      Scroll() {
+        Text(this.album ? this.album.description : '')
+          .fontSize(15)
+          .fontColor($r('app.color.text_secondary'))
+          .lineHeight(26)
+          .width('100%')
+          .padding({ left: 20, right: 20, bottom: 32 })
+      }
+      .layoutWeight(1)
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ top: 16 })
   }
 }
