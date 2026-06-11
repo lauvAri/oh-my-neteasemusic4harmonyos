@@ -1,6 +1,7 @@
 import common from '@ohos.app.ability.common';
 import { RecommendPlaylist } from '../../domain/model/RecommendPlaylistModels';
 import { RecommendPlaylistApi } from '../../data/api/RecommendPlaylistApi';
+import { TwoLineTitle } from '../../../../../common/ui/TwoLineTitle';
 
 @Component
 export struct RecommendPlaylistRow {
@@ -89,12 +90,12 @@ export struct RecommendPlaylistRow {
       .width(120)
       .height(120)
 
-      Text(playlist.name)
-        .fontSize(13)
-        .fontColor($r('app.color.text_primary'))
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .width('100%')
+      TwoLineTitle({
+        content: playlist.name,
+        fontSize: 13,
+        fontColor: $r('app.color.text_primary'),
+        titleWidth: '100%'
+      })
     }
     .width(120)
     .alignItems(HorizontalAlign.Start)

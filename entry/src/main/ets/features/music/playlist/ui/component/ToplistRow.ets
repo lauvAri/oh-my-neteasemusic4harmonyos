@@ -2,6 +2,7 @@ import common from '@ohos.app.ability.common';
 import { promptAction } from '@kit.ArkUI';
 import { Toplist, ArtistToplist } from '../../domain/model/ToplistModels';
 import { ToplistApi } from '../../data/api/ToplistApi';
+import { TwoLineTitle } from '../../../../../common/ui/TwoLineTitle';
 
 interface ToplistCardItem {
   key: string;
@@ -110,12 +111,12 @@ export struct ToplistRow {
       .width(120)
       .height(120)
 
-      Text(item.name)
-        .fontSize(13)
-        .fontColor($r('app.color.text_primary'))
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .width('100%')
+      TwoLineTitle({
+        content: item.name,
+        fontSize: 13,
+        fontColor: $r('app.color.text_primary'),
+        titleWidth: '100%'
+      })
     }
     .width(120)
     .alignItems(HorizontalAlign.Start)

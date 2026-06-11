@@ -7,6 +7,7 @@ import { ArtistSublistApi } from '../features/mine/data/api/ArtistSublistApi';
 import { UserPlaylistItem, SubscribedAlbumItem, SubscribedArtistItem } from
   '../features/mine/domain/model/MineModels';
 import { TAB_PAGE_BOTTOM_PADDING_VP } from '../common/ui/PageLayout';
+import { TwoLineTitle } from '../common/ui/TwoLineTitle';
 
 @Component
 export struct MinePage {
@@ -208,12 +209,12 @@ export struct MinePage {
               .height(100)
               .borderRadius(8)
               .objectFit(ImageFit.Cover)
-            Text(item.name)
-              .fontSize(12)
-              .fontColor($r('app.color.text_secondary'))
-              .maxLines(2)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .width(100)
+            TwoLineTitle({
+              content: item.name,
+              fontSize: 12,
+              fontColor: $r('app.color.text_secondary'),
+              titleWidth: 100
+            })
           }
           .onClick(() => {
             this.pathStack.pushPath({ name: 'PlaylistDetailPage', param: item.id });
@@ -238,18 +239,18 @@ export struct MinePage {
               .height(100)
               .borderRadius(8)
               .objectFit(ImageFit.Cover)
-            Text(item.name)
-              .fontSize(12)
-              .fontColor($r('app.color.text_secondary'))
-              .maxLines(2)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .width(100)
-            Text(item.artist ? item.artist.name : '')
-              .fontSize(11)
-              .fontColor($r('app.color.text_quaternary'))
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .width(100)
+            TwoLineTitle({
+              content: item.name,
+              fontSize: 12,
+              fontColor: $r('app.color.text_secondary'),
+              titleWidth: 100
+            })
+            TwoLineTitle({
+              content: item.artist ? item.artist.name : '',
+              fontSize: 11,
+              fontColor: $r('app.color.text_quaternary'),
+              titleWidth: 100
+            })
           }
           .onClick(() => {
             this.pathStack.pushPath({ name: 'AlbumDetailPage', param: item.id });
@@ -274,13 +275,13 @@ export struct MinePage {
               .height(80)
               .borderRadius(40)
               .objectFit(ImageFit.Cover)
-            Text(item.name)
-              .fontSize(12)
-              .fontColor($r('app.color.text_secondary'))
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .width(80)
-              .textAlign(TextAlign.Center)
+            TwoLineTitle({
+              content: item.name,
+              fontSize: 12,
+              fontColor: $r('app.color.text_secondary'),
+              titleWidth: 80,
+              titleAlign: TextAlign.Center
+            })
           }
           .onClick(() => {
             this.pathStack.pushPath({ name: 'ArtistDetailPage', param: item.id });
