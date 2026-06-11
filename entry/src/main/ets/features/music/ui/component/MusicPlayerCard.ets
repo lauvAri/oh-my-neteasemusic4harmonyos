@@ -1,10 +1,14 @@
 import { promptAction, router } from '@kit.ArkUI';
+import common from '@ohos.app.ability.common';
 import { SongApi } from '../../data/api/SongApi';
+import { LikeApi } from '../../data/api/LikeApi';
+import { LikeListApi } from '../../data/api/LikeListApi';
 import { SongRepositoryImpl } from '../../data/repository/SongRepositoryImpl';
 import { SongArtist, SongDetail, SongPrivilege } from '../../domain/model/SongModels';
 import { GetSongDetailUseCase, SongDetailAggregate } from '../../domain/usecase/GetSongDetailUseCase';
 import { PlayerEngine, PlaybackMode } from '../../service/PlayerEngine';
 import { Song } from '../../domain/model/Song';
+import { SessionStore } from '../../../../common/storage/SessionStore';
 
 interface ParsedLyricLine {
   timeMs: number;
@@ -64,6 +68,8 @@ export struct MusicPlayerCard {
   @State private secondaryMode: LyricSecondaryMode = LyricSecondaryMode.TRANSLATION;
   @State private showOnlyTranslation: boolean = true;
   @State private activeSheet: ActiveSheet | null = null;
+  @State private isLiked: boolean = false;
+  @State private likePending: boolean = false;
 
   private songRepository: SongRepositoryImpl = new SongRepositoryImpl(new SongApi());
   private readonly getSongDetailUseCase: GetSongDetailUseCase =
@@ -72,19 +78,32 @@ export struct MusicPlayerCard {
   private lyricScroller: Scroller = new Scroller();
   private lastScrolledLyricIndex: number = -2;
   private navDebounceTimestamp: number = 0;
+  private likeApi?: LikeApi;
+  private likeListApi?: LikeListApi;
+  private sessionStore?: SessionStore;
 
   aboutToAppear(): void {
+    const context = getContext(this) as common.UIAbilityContext;
+    this.sessionStore = new SessionStore(context);
+    this.likeApi = new LikeApi(context);
+    this.likeListApi = new LikeListApi(context);
+    this.songRepository.setLikeApi(this.likeApi);
     this.reloadCurrentSongData();
+    // Preload liked song list if not yet loaded
+    const userId = AppStorage.get<number>('userId');
+    if (userId !== undefined && userId > 0) {
+      this.songRepository.loadLikedSongIds(userId, context).catch((_e: Error) => {});
+    }
   }
 
   private getActiveSongId(): number {
     const stored = AppStorage.get<number>('selectedSongId') ?? 0;
     return stored > 0 ? stored : this.songId;
   }
-
   private reloadCurrentSongData(): void {
     this.loadSongDetail(this.songId);
     this.refreshParsedLyrics();
+    this.isLiked = SongRepositoryImpl.isLikedSong(this.songId);
   }
 
   private async loadSongDetail(targetSongId: number): Promise<void> {
@@ -249,7 +268,6 @@ export struct MusicPlayerCard {
     this.refreshParsedLyrics();
     this.syncLyricScroll();
   }
-
   private onSelectedSongChanged(): void {
     if (this.selectedSongId <= 0) {
       return;
@@ -258,6 +276,7 @@ export struct MusicPlayerCard {
       return;
     }
     this.statusText = '播放中';
+    this.isLiked = SongRepositoryImpl.isLikedSong(this.selectedSongId);
     this.loadSongDetail(this.selectedSongId);
     this.refreshParsedLyrics();
   }
@@ -400,6 +419,59 @@ export struct MusicPlayerCard {
         this.engine.cyclePlaybackMode();
         promptAction.showToast({ message: this.getPlaybackModeLabel() });
       })
+  }
+
+  @Builder
+  private FavoriteButton() {
+    Button() {
+      Image(this.isLiked ? $r('app.media.ic_favorite_filled') : $r('app.media.ic_favorite'))
+        .width(20)
+        .height(20)
+        .fillColor(this.isLiked ? $r('app.color.text_danger') : TEXT_TERTIARY)
+    }
+      .type(ButtonType.Circle)
+      .width(36)
+      .height(36)
+      .backgroundColor(Color.Transparent)
+      .stateEffect(true)
+      .enabled(!this.likePending)
+      .onClick(() => {
+        this.toggleLike();
+      })
+  }
+
+  private async toggleLike(): Promise<void> {
+    if (this.likePending) {
+      return;
+    }
+    const songId = this.getActiveSongId();
+    if (songId === 0) {
+      return;
+    }
+
+    const cookie = await this.sessionStore?.getCookie() ?? '';
+    if (cookie.length === 0) {
+      promptAction.showToast({ message: '请先登录' });
+      return;
+    }
+
+    const prev = this.isLiked;
+    this.isLiked = !prev;
+    this.likePending = true;
+    try {
+      await this.songRepository.toggleSongLike(songId, !prev);
+      if (!prev) {
+        SongRepositoryImpl.addLikedSongId(songId);
+      } else {
+        SongRepositoryImpl.removeLikedSongId(songId);
+      }
+      promptAction.showToast({ message: !prev ? '已添加到我喜欢' : '已取消喜欢' });
+    } catch (error) {
+      this.isLiked = prev;
+      promptAction.showToast({ message: (error as Error).message });
+    } finally {
+      this.likePending = false;
+    }
   }
 
   @Builder
@@ -759,6 +831,7 @@ export struct MusicPlayerCard {
         Blank()
       }
       Blank()
+      this.FavoriteButton()
     }
     .width('100%')
     .padding({ left: 16, right: 16 })

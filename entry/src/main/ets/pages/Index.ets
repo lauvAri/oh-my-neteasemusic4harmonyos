@@ -3,7 +3,8 @@ import { promptAction, router } from '@kit.ArkUI';
 import { AuthService, QrLoginSession } from '../features/auth/service/AuthService';
 import { HttpClient } from '../common/network/HttpClient';
 import { SessionStore } from '../common/storage/SessionStore';
-
+import { SongApi } from '../features/music/data/api/SongApi';
+import { SongRepositoryImpl } from '../features/music/data/repository/SongRepositoryImpl';
 @Entry
 @Component
 struct Index {
@@ -11,9 +12,9 @@ struct Index {
   @State statusText: string = '正在生成登录二维码...';
   @State loading: boolean = false;
   @State qrKey: string = '';
-
   private authService?: AuthService;
   private pollTimerId: number = -1;
+  private songRepository: SongRepositoryImpl = new SongRepositoryImpl(new SongApi());
 
   aboutToAppear(): void {
     const context = getContext(this) as common.UIAbilityContext;

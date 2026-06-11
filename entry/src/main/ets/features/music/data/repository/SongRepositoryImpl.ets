@@ -1,5 +1,8 @@
+import common from '@ohos.app.ability.common';
 import { ApiException } from '../../../../common/error/ApiException';
 import { SongApi } from '../api/SongApi';
+import { LikeApi } from '../api/LikeApi';
+import { LikeListApi } from '../api/LikeListApi';
 import { SongRepository } from '../../domain/repository/SongRepository';
 import {
   LyricResponse,
@@ -11,11 +14,17 @@ import {
 export class SongRepositoryImpl implements SongRepository {
   private static detailCache: Map<number, SongDetailCachedAggregate> = new Map();
   private static lyricCache: Map<number, LyricResponse> = new Map();
+  private static likedSongIds: Set<number> = new Set();
 
   private songApi: SongApi;
+  private likeApi?: LikeApi;
 
   constructor(songApi: SongApi) {
     this.songApi = songApi;
+  }
+
+  setLikeApi(api: LikeApi): void {
+    this.likeApi = api;
   }
 
   async getSongPlayUrl(songId: number): Promise<string> {
@@ -58,6 +67,38 @@ export class SongRepositoryImpl implements SongRepository {
     const response = await this.songApi.getLyric(songId);
     SongRepositoryImpl.lyricCache.set(songId, response);
     return response;
+  }
+  async toggleSongLike(songId: number, like: boolean): Promise<void> {
+    if (!this.likeApi) {
+      throw ApiException.business(-1001, '请先登录');
+    }
+    if (like) {
+      await this.likeApi.like(songId);
+    } else {
+      await this.likeApi.unlike(songId);
+    }
+  }
+
+  static addLikedSongId(songId: number): void {
+    SongRepositoryImpl.likedSongIds.add(songId);
+  }
+
+  static removeLikedSongId(songId: number): void {
+    SongRepositoryImpl.likedSongIds.delete(songId);
+  }
+
+  static isLikedSong(songId: number): boolean {
+    return SongRepositoryImpl.likedSongIds.has(songId);
+  }
+
+  static setLikedSongIds(ids: number[]): void {
+    SongRepositoryImpl.likedSongIds = new Set(ids);
+  }
+
+  async loadLikedSongIds(uid: number, context: common.UIAbilityContext): Promise<void> {
+    const likeListApi = new LikeListApi(context);
+    const ids = await likeListApi.getLikedSongIds(uid);
+    SongRepositoryImpl.setLikedSongIds(ids);
   }
 
   private async loadSongDetailAggregate(songId: number): Promise<SongDetailCachedAggregate> {

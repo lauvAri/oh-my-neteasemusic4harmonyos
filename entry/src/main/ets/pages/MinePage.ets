@@ -69,6 +69,7 @@ export struct MinePage {
       this.backgroundUrl = response.profile.backgroundUrl;
       this.signature = response.profile.signature === undefined ? '' : response.profile.signature;
       this.userId = response.profile.userId;
+      AppStorage.setOrCreate<number>('userId', this.userId);
       this.userName = response.profile.userName;
       this.accountName = response.account.userName;
       this.profileVipType = response.profile.vipType;

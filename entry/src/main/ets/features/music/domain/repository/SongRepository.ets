@@ -6,4 +6,5 @@ export interface SongRepository {
   getSongPrivilege(songId: number): Promise<SongPrivilege | null>;
   getCachedDetail(songId: number): SongDetailCachedAggregate | null;
   getSongLyric(songId: number): Promise<LyricResponse>;
+  toggleSongLike(songId: number, like: boolean): Promise<void>;
 }
