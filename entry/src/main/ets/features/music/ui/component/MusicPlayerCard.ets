@@ -4,6 +4,7 @@ import { SongRepositoryImpl } from '../../data/repository/SongRepositoryImpl';
 import { SongArtist, SongDetail, SongPrivilege } from '../../domain/model/SongModels';
 import { GetSongDetailUseCase, SongDetailAggregate } from '../../domain/usecase/GetSongDetailUseCase';
 import { PlayerEngine, PlaybackMode } from '../../service/PlayerEngine';
+import { Song } from '../../domain/model/Song';
 
 interface ParsedLyricLine {
   timeMs: number;
@@ -17,6 +18,8 @@ enum LyricSecondaryMode {
   ROMAJI = 1,
   ORIGINAL = 2
 }
+
+type ActiveSheet = 'queue' | 'artist';
 
 const TEXT_PRIMARY: string = '#ffffff';
 const TEXT_SECONDARY: string = 'rgba(255, 255, 255, 0.78)';
@@ -36,6 +39,8 @@ export struct MusicPlayerCard {
   @StorageLink('miniPlayerPlaying') private playing: boolean = false;
   @StorageLink('selectedSongId') @Watch('onSelectedSongChanged') private selectedSongId: number = 0;
   @StorageLink('playbackMode') private playbackMode: number = 0;
+  @StorageLink('playQueue') private playQueue: Song[] = [];
+  @StorageLink('currentQueueIndex') private currentQueueIndex: number = -1;
   @StorageLink('playerCurrentMs') @Watch('onCurrentMsChanged') private currentMs: number = 0;
   @StorageLink('playerDurationMs') private durationMs: number = 0;
   @StorageLink('currentSongRawLyric') @Watch('onLyricStorageChanged') private rawLyricText: string = '';
@@ -58,7 +63,7 @@ export struct MusicPlayerCard {
   @State private lyricLines: ParsedLyricLine[] = [];
   @State private secondaryMode: LyricSecondaryMode = LyricSecondaryMode.TRANSLATION;
   @State private showOnlyTranslation: boolean = true;
-  @State private showArtistPicker: boolean = false;
+  @State private activeSheet: ActiveSheet | null = null;
 
   private songRepository: SongRepositoryImpl = new SongRepositoryImpl(new SongApi());
   private readonly getSongDetailUseCase: GetSongDetailUseCase =
@@ -339,6 +344,21 @@ export struct MusicPlayerCard {
     return '顺序播放';
   }
 
+  private getQueueSongArtistText(song: Song): string {
+    if (song.ar.length === 0) {
+      return '未知歌手';
+    }
+    return song.ar.map((artist: SongArtist) => artist.name).join(' / ');
+  }
+
+  private getQueueSongDurationText(song: Song): string {
+    const totalSeconds = Math.floor(song.dt / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    const secondText = seconds < 10 ? `0${seconds}` : `${seconds}`;
+    return `${minutes}:${secondText}`;
+  }
+
   private async playSong(): Promise<void> {
     this.loading = true;
     this.statusText = '正在请求播放链接...';
@@ -380,6 +400,198 @@ export struct MusicPlayerCard {
         this.engine.cyclePlaybackMode();
         promptAction.showToast({ message: this.getPlaybackModeLabel() });
       })
+  }
+
+  @Builder
+  private QueueButton() {
+    Button() {
+      Image($r('app.media.ic_music_queue'))
+        .width(26)
+        .height(26)
+        .fillColor(TEXT_PRIMARY)
+    }
+      .type(ButtonType.Circle)
+      .width(48)
+      .height(48)
+      .backgroundColor(Color.Transparent)
+      .stateEffect(true)
+      .onClick(() => {
+        this.activeSheet = 'queue';
+      })
+  }
+
+  @Builder
+  private SheetRouter() {
+    if (this.activeSheet === 'queue') {
+      this.QueueSheet();
+    } else if (this.activeSheet === 'artist') {
+      this.ArtistPickerSheet();
+    }
+  }
+
+  @Builder
+  private QueueSheet() {
+    Column() {
+      Text(`当前播放 (${this.playQueue.length})`)
+        .fontSize(17)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(TEXT_PRIMARY)
+        .width('100%')
+        .textAlign(TextAlign.Center)
+        .padding({ top: 4, bottom: 12 })
+
+      Divider()
+        .color('rgba(255, 255, 255, 0.10)')
+        .width('100%')
+
+      if (this.playQueue.length === 0) {
+        Column() {
+          Text('暂无播放队列')
+            .fontSize(14)
+            .fontColor(TEXT_TERTIARY)
+        }
+        .layoutWeight(1)
+        .width('100%')
+        .justifyContent(FlexAlign.Center)
+      } else {
+        List() {
+          ForEach(this.playQueue, (song: Song, index: number) => {
+            ListItem() {
+              this.QueueRow(song, index)
+            }
+          }, (song: Song, index: number) => `${index}-${song.id}`)
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .listDirection(Axis.Vertical)
+        .scrollBar(BarState.Auto)
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ top: 12, bottom: 16 })
+  }
+
+  @Builder
+  private QueueRow(song: Song, index: number) {
+    Row({ space: 12 }) {
+      if (index === this.currentQueueIndex) {
+        Image($r('app.media.ic_play'))
+          .width(14)
+          .height(14)
+          .fillColor($r('app.color.text_brand'))
+      } else {
+        Text(`${index + 1}`)
+          .fontSize(13)
+          .fontColor(TEXT_TERTIARY)
+          .width(14)
+          .textAlign(TextAlign.Center)
+      }
+
+      Image(song.al.picUrl)
+        .width(44)
+        .height(44)
+        .borderRadius(6)
+        .objectFit(ImageFit.Cover)
+
+      Column({ space: 4 }) {
+        Text(song.name)
+          .fontSize(15)
+          .fontWeight(index === this.currentQueueIndex ? FontWeight.Medium : FontWeight.Regular)
+          .fontColor(index === this.currentQueueIndex ? $r('app.color.text_brand') : TEXT_PRIMARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+        Text(`${this.getQueueSongArtistText(song)} - ${song.al.name}`)
+          .fontSize(12)
+          .fontColor(TEXT_TERTIARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+
+      Text(this.getQueueSongDurationText(song))
+        .fontSize(12)
+        .fontColor(TEXT_TERTIARY)
+        .margin({ right: 4 })
+    }
+    .width('100%')
+    .padding({ top: 8, bottom: 8, left: 4, right: 4 })
+    .onClick(() => {
+      this.activeSheet = null;
+      this.engine.playSong(song.id).catch((error: Error) => {
+        console.error(`queue switch failed: ${error.message}`);
+      });
+    })
+  }
+
+  @Builder
+  private ArtistPickerSheet() {
+    Column() {
+      Text('选择歌手')
+        .fontSize(17)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(TEXT_PRIMARY)
+        .width('100%')
+        .textAlign(TextAlign.Center)
+        .padding({ top: 4, bottom: 12 })
+
+      Divider()
+        .color('rgba(255, 255, 255, 0.10)')
+        .width('100%')
+
+      if (!this.songDetail || this.songDetail.ar.length === 0) {
+        Column() {
+          Text('暂无歌手信息')
+            .fontSize(14)
+            .fontColor(TEXT_TERTIARY)
+        }
+        .layoutWeight(1)
+        .width('100%')
+        .justifyContent(FlexAlign.Center)
+      } else {
+        List() {
+          ForEach(this.songDetail.ar, (artist: SongArtist) => {
+            ListItem() {
+              this.ArtistPickerRow(artist)
+            }
+          }, (artist: SongArtist) => `${artist.id}`)
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .listDirection(Axis.Vertical)
+        .scrollBar(BarState.Auto)
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ top: 12, bottom: 16 })
+  }
+
+  @Builder
+  private ArtistPickerRow(artist: SongArtist) {
+    Row({ space: 12 }) {
+      Image($r('app.media.ic_favorite'))
+        .width(18)
+        .height(18)
+        .fillColor(TEXT_TERTIARY)
+
+      Text(artist.name)
+        .fontSize(16)
+        .fontColor(TEXT_PRIMARY)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .layoutWeight(1)
+        .textAlign(TextAlign.Start)
+    }
+    .width('100%')
+    .height(56)
+    .padding({ left: 8, right: 8 })
+    .onClick(() => {
+      this.activeSheet = null;
+      this.navigateToArtist(artist.id);
+    })
   }
 
   build() {
@@ -494,6 +706,8 @@ export struct MusicPlayerCard {
               }
             })
         }
+
+        this.QueueButton()
       }
       .width('100%')
       .justifyContent(FlexAlign.Center)
@@ -523,7 +737,15 @@ export struct MusicPlayerCard {
     .width('100%')
     .height('100%')
     .alignItems(HorizontalAlign.Center)
-    .bindContentCover(this.showArtistPicker, this.ArtistPickerOverlay())
+    .bindSheet(this.activeSheet !== null, this.SheetRouter(), {
+      height: '60%',
+      showClose: false,
+      dragBar: true,
+      backgroundColor: '#1f2937',
+      onDisappear: () => {
+        this.activeSheet = null;
+      }
+    })
   }
 
   @Builder
@@ -607,65 +829,6 @@ export struct MusicPlayerCard {
     .onClick(() => {
       this.showOnlyTranslation = !this.showOnlyTranslation;
     })
-  }
-
-  @Builder
-  private ArtistPickerOverlay() {
-    Stack({ alignContent: Alignment.Center }) {
-      Column()
-        .width('100%')
-        .height('100%')
-        .backgroundColor('rgba(0, 0, 0, 0.55)')
-        .onClick(() => {
-          this.showArtistPicker = false;
-        })
-
-      if (this.songDetail) {
-        Column() {
-          Text('选择歌手')
-            .fontSize(15)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(TEXT_PRIMARY)
-            .width('100%')
-            .height(48)
-            .textAlign(TextAlign.Center)
-            .border({
-              width: { bottom: 1 },
-              color: 'rgba(255, 255, 255, 0.10)',
-              style: BorderStyle.Solid
-            })
-
-          Scroll() {
-            Column() {
-              ForEach(this.songDetail.ar, (artist: SongArtist) => {
-                Text(artist.name)
-                  .width('100%')
-                  .height(48)
-                  .fontSize(15)
-                  .fontColor(TEXT_PRIMARY)
-                  .textAlign(TextAlign.Center)
-                  .onClick(() => {
-                    this.showArtistPicker = false;
-                    this.navigateToArtist(artist.id);
-                  })
-              }, (artist: SongArtist) => `${artist.id}-${artist.name}`)
-            }
-            .width('100%')
-          }
-          .width('100%')
-          .constraintSize({ maxHeight: 360 })
-        }
-        .width('80%')
-        .constraintSize({ maxHeight: 480 })
-        .backgroundColor('#1f2937')
-        .borderRadius(16)
-        .padding({ top: 4, bottom: 4 })
-        .onClick(() => {
-        })
-      }
-    }
-    .width('100%')
-    .height('100%')
   }
 
   @Builder
@@ -776,7 +939,7 @@ export struct MusicPlayerCard {
             if (this.songDetail.ar.length === 1) {
               this.navigateToArtist(this.songDetail.ar[0].id);
             } else {
-              this.showArtistPicker = true;
+              this.activeSheet = 'artist';
             }
           })
 
