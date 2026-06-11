@@ -35,6 +35,10 @@ const PLAY_BUTTON_GRAY: string = 'rgba(128, 128, 128, 0.60)';
 const SLIDER_TRACK_GRAY: string = 'rgba(128, 128, 128, 0.30)';
 const TOGGLE_BORDER_COLOR: string = 'rgba(255, 255, 255, 0.40)';
 const TOGGLE_BORDER_COLOR_OFF: string = 'rgba(255, 255, 255, 0.20)';
+const LYRIC_MANUAL_RESET_MS: number = 5000;
+const LYRIC_AUTO_SCROLL_GUARD_MS: number = 650;
+const LYRIC_TOP_SPACER_HEIGHT: number = 180;
+const LYRIC_BOTTOM_SPACER_HEIGHT: number = 180;
 
 @Component
 export struct MusicPlayerCard {
@@ -70,13 +74,20 @@ export struct MusicPlayerCard {
   @State private activeSheet: ActiveSheet | null = null;
   @State private isLiked: boolean = false;
   @State private likePending: boolean = false;
+  @State private manualLyricIndex: number = -1;
+  @State private isManualLyricMode: boolean = false;
 
   private songRepository: SongRepositoryImpl = new SongRepositoryImpl(new SongApi());
   private readonly getSongDetailUseCase: GetSongDetailUseCase =
     new GetSongDetailUseCase(this.songRepository);
   private engine: PlayerEngine = PlayerEngine.getInstance();
   private lyricScroller: Scroller = new Scroller();
+  private mediaSwiperController: SwiperController = new SwiperController();
   private lastScrolledLyricIndex: number = -2;
+  private manualLyricResetTimer: number = -1;
+  private autoLyricScrollGuardTimer: number = -1;
+  private isAutoScrollingLyric: boolean = false;
+  private hasUserTouchedLyric: boolean = false;
   private navDebounceTimestamp: number = 0;
   private likeApi?: LikeApi;
   private likeListApi?: LikeListApi;
@@ -96,6 +107,18 @@ export struct MusicPlayerCard {
     }
   }
 
+  aboutToDisappear(): void {
+    this.clearManualLyricResetTimer();
+    this.clearAutoLyricScrollGuardTimer();
+  }
+
+  private formatLyricTime(timeMs: number): string {
+    const totalSeconds = Math.floor(timeMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+
   private getActiveSongId(): number {
     const stored = AppStorage.get<number>('selectedSongId') ?? 0;
     return stored > 0 ? stored : this.songId;
@@ -109,6 +132,7 @@ export struct MusicPlayerCard {
   private async loadSongDetail(targetSongId: number): Promise<void> {
     this.showLyric = false;
     this.lastScrolledLyricIndex = -2;
+    this.exitManualLyricMode(false);
 
     const cached = this.songRepository.getCachedDetail(targetSongId);
     if (cached !== null) {
@@ -247,12 +271,101 @@ export struct MusicPlayerCard {
     if (!this.showLyric || this.storedLyricLoading || this.lyricLines.length === 0) {
       return;
     }
+    if (this.manualLyricIndex !== -1) {
+      return;
+    }
     const currentLyricIndex = this.getCurrentLyricIndex();
     if (currentLyricIndex < 0 || currentLyricIndex === this.lastScrolledLyricIndex) {
       return;
     }
     this.lastScrolledLyricIndex = currentLyricIndex;
+    this.markAutoLyricScrolling();
     this.lyricScroller.scrollToIndex(currentLyricIndex + 1, true, ScrollAlign.CENTER);
+  }
+
+  private clearManualLyricResetTimer(): void {
+    if (this.manualLyricResetTimer !== -1) {
+      clearTimeout(this.manualLyricResetTimer);
+      this.manualLyricResetTimer = -1;
+    }
+  }
+
+  private clearAutoLyricScrollGuardTimer(): void {
+    if (this.autoLyricScrollGuardTimer !== -1) {
+      clearTimeout(this.autoLyricScrollGuardTimer);
+      this.autoLyricScrollGuardTimer = -1;
+    }
+  }
+
+  private markAutoLyricScrolling(): void {
+    this.clearAutoLyricScrollGuardTimer();
+    this.isAutoScrollingLyric = true;
+    this.autoLyricScrollGuardTimer = setTimeout(() => {
+      this.isAutoScrollingLyric = false;
+      this.autoLyricScrollGuardTimer = -1;
+    }, LYRIC_AUTO_SCROLL_GUARD_MS);
+  }
+
+  private exitManualLyricMode(shouldSync: boolean = true): void {
+    this.clearManualLyricResetTimer();
+    this.manualLyricIndex = -1;
+    this.isManualLyricMode = false;
+    this.hasUserTouchedLyric = false;
+    this.lastScrolledLyricIndex = -2;
+    if (shouldSync) {
+      this.syncLyricScroll();
+    }
+  }
+
+  private scheduleManualLyricReset(): void {
+    this.clearManualLyricResetTimer();
+    this.manualLyricResetTimer = setTimeout(() => {
+      this.exitManualLyricMode();
+    }, LYRIC_MANUAL_RESET_MS);
+  }
+
+  private getNearestSeekableLyricIndex(targetIndex: number): number {
+    if (targetIndex < 0 || targetIndex >= this.lyricLines.length) {
+      return -1;
+    }
+    if (this.lyricLines[targetIndex].timeMs >= 0) {
+      return targetIndex;
+    }
+    let previousIndex = targetIndex - 1;
+    let nextIndex = targetIndex + 1;
+    while (previousIndex >= 0 || nextIndex < this.lyricLines.length) {
+      if (previousIndex >= 0 && this.lyricLines[previousIndex].timeMs >= 0) {
+        return previousIndex;
+      }
+      if (nextIndex < this.lyricLines.length && this.lyricLines[nextIndex].timeMs >= 0) {
+        return nextIndex;
+      }
+      previousIndex--;
+      nextIndex++;
+    }
+    return -1;
+  }
+
+  private selectManualLyricByVisibleRange(startIndex: number, endIndex: number): void {
+    if (!this.showLyric || this.storedLyricLoading || this.lyricLines.length === 0) {
+      return;
+    }
+    if (this.isAutoScrollingLyric) {
+      return;
+    }
+    if (!this.hasUserTouchedLyric) {
+      return;
+    }
+    const visibleLyricStart = Math.max(0, startIndex - 1);
+    const visibleLyricEnd = Math.max(visibleLyricStart, endIndex - 1);
+    const targetIndex = startIndex <= 1 ? 0 : Math.floor((visibleLyricStart + visibleLyricEnd) / 2);
+    const nearestIndex = this.getNearestSeekableLyricIndex(targetIndex);
+    if (nearestIndex < 0) {
+      return;
+    }
+    this.isManualLyricMode = true;
+    this.manualLyricIndex = nearestIndex;
+    this.scheduleManualLyricReset();
   }
 
   private onCurrentMsChanged(): void {
@@ -260,6 +373,7 @@ export struct MusicPlayerCard {
   }
 
   private onShowLyricChanged(): void {
+    this.mediaSwiperController.changeIndex(this.showLyric ? 1 : 0, true);
     this.syncLyricScroll();
   }
 
@@ -690,6 +804,7 @@ export struct MusicPlayerCard {
             this.engine.seekTo(targetMs).catch((error: Error) => {
               console.error(`seek failed: ${error.message}`);
             });
+            this.exitManualLyricMode(false);
           }
         })
 
@@ -921,15 +1036,27 @@ export struct MusicPlayerCard {
         .width('100%')
         .height('100%')
       } else if (this.songDetail) {
-        if (this.showLyric) {
-          Stack({ alignContent: Alignment.Center }) {
-            this.LyricsView()
-          }
-          .width('100%')
-          .height('100%')
-        } else {
+        Swiper(this.mediaSwiperController) {
           this.CoverView()
+          this.LyricsView()
         }
+        .index(this.showLyric ? 1 : 0)
+        .loop(false)
+        .indicator(false)
+        .duration(260)
+        .vertical(false)
+        .width('100%')
+        .height('100%')
+        .onChange((index: number) => {
+          this.showLyric = index === 1;
+          if (index === 0) {
+            this.exitManualLyricMode(false);
+            this.lastScrolledLyricIndex = -2;
+          } else {
+            this.lastScrolledLyricIndex = -2;
+            this.syncLyricScroll();
+          }
+        })
       }
     }
     .layoutWeight(1)
@@ -945,10 +1072,6 @@ export struct MusicPlayerCard {
         .borderRadius(28)
         .objectFit(ImageFit.Cover)
         .shadow(ShadowStyle.OUTER_DEFAULT_MD)
-        .onClick(() => {
-          this.showLyric = true;
-          this.lastScrolledLyricIndex = -2;
-        })
 
       Column({ space: 4 }) {
         Text(this.songDetail ? this.songDetail.name : '')
@@ -1024,90 +1147,167 @@ export struct MusicPlayerCard {
 
   @Builder
   private LyricsView() {
-    List({ space: 14, scroller: this.lyricScroller, initialIndex: 0 }) {
-      ListItem() {
-        Column() {
-          Blank()
-        }
-        .height(120)
-        .width('100%')
-      }
-
-      if (this.storedLyricLoading) {
+    Stack({ alignContent: Alignment.Center }) {
+      List({ space: 14, scroller: this.lyricScroller, initialIndex: 0 }) {
         ListItem() {
-          Column({ space: 10 }) {
-            LoadingProgress()
-              .width(36)
-              .height(36)
-              .color(TEXT_PRIMARY)
-            Text('歌词加载中...')
-              .fontSize(13)
-              .fontColor(TEXT_SECONDARY)
+          Column() {
+            Blank()
           }
+          .height(LYRIC_TOP_SPACER_HEIGHT)
           .width('100%')
-          .height(220)
-          .justifyContent(FlexAlign.Center)
         }
-      } else if (this.storedLyricErrorText.length > 0) {
-        ListItem() {
-          Text(this.storedLyricErrorText)
-            .fontSize(14)
-            .fontColor(ERROR_COLOR)
-            .width('100%')
-            .textAlign(TextAlign.Center)
-        }
-      } else {
-        ForEach(this.lyricLines, (line: ParsedLyricLine, index: number) => {
-          ListItem() {
-            Column({ space: 4 }) {
-              Text(line.text)
-                .fontSize(this.isActiveLyricLine(index) ? 19 : 15)
-                .fontWeight(this.isActiveLyricLine(index) ? FontWeight.Medium : FontWeight.Regular)
-                .fontColor(this.isActiveLyricLine(index) ? TEXT_PRIMARY : TEXT_TERTIARY)
-                .lineHeight(this.isActiveLyricLine(index) ? 30 : 26)
-                .textAlign(TextAlign.Center)
-                .width('100%')
-                .padding({ left: 12, right: 12 })
-              if (this.shouldShowTranslation() && line.translation.length > 0) {
-                Text(line.translation)
-                  .fontSize(13)
-                  .fontColor(TEXT_TERTIARY)
-                  .lineHeight(20)
-                  .textAlign(TextAlign.Center)
-                  .width('100%')
-                  .padding({ left: 12, right: 12 })
-              }
-              if (this.shouldShowRomaji() && line.romaji.length > 0) {
-                Text(line.romaji)
-                  .fontSize(12)
-                  .fontColor(TEXT_MUTED)
-                  .lineHeight(18)
-                  .textAlign(TextAlign.Center)
-                  .width('100%')
-                  .padding({ left: 12, right: 12 })
-              }
-            }
-            .alignItems(HorizontalAlign.Center)
-            .width('100%')
-          }
-        }, (line: ParsedLyricLine, index: number) => `${index}-${line.timeMs}-${line.text}`)
-      }
 
-      ListItem() {
-        Column() {
-          Blank()
+        if (this.storedLyricLoading) {
+          ListItem() {
+            Column({ space: 10 }) {
+              LoadingProgress()
+                .width(36)
+                .height(36)
+                .color(TEXT_PRIMARY)
+              Text('歌词加载中...')
+                .fontSize(13)
+                .fontColor(TEXT_SECONDARY)
+            }
+            .width('100%')
+            .height(220)
+            .justifyContent(FlexAlign.Center)
+          }
+        } else if (this.storedLyricErrorText.length > 0) {
+          ListItem() {
+            Text(this.storedLyricErrorText)
+              .fontSize(14)
+              .fontColor(ERROR_COLOR)
+              .width('100%')
+              .textAlign(TextAlign.Center)
+          }
+        } else {
+          ForEach(this.lyricLines, (line: ParsedLyricLine, index: number) => {
+            ListItem() {
+              Column() {
+                if (this.isActiveLyricLine(index)) {
+                  Divider()
+                    .color(TEXT_PRIMARY)
+                    .width('60%')
+                    .opacity(0.6)
+                }
+                Row({ space: 8 }) {
+                  if (this.manualLyricIndex === index) {
+                    Text(this.formatLyricTime(line.timeMs))
+                      .fontSize(12)
+                      .fontColor(TEXT_SECONDARY)
+                      .width(36)
+                      .textAlign(TextAlign.Center)
+                  } else {
+                    Text('').width(36)
+                  }
+
+                  Column({ space: 4 }) {
+                    Text(line.text)
+                      .fontSize(this.isActiveLyricLine(index) ? 19 : 15)
+                      .fontWeight(this.isActiveLyricLine(index) ? FontWeight.Medium : FontWeight.Regular)
+                      .fontColor(this.isActiveLyricLine(index) ? TEXT_PRIMARY : TEXT_TERTIARY)
+                      .lineHeight(this.isActiveLyricLine(index) ? 30 : 26)
+                      .textAlign(TextAlign.Center)
+                      .width('100%')
+                      .padding({ left: 4, right: 4 })
+                    if (this.shouldShowTranslation() && line.translation.length > 0) {
+                      Text(line.translation)
+                        .fontSize(13)
+                        .fontColor(TEXT_TERTIARY)
+                        .lineHeight(20)
+                        .textAlign(TextAlign.Center)
+                        .width('100%')
+                        .padding({ left: 4, right: 4 })
+                    }
+                    if (this.shouldShowRomaji() && line.romaji.length > 0) {
+                      Text(line.romaji)
+                        .fontSize(12)
+                        .fontColor(TEXT_MUTED)
+                        .lineHeight(18)
+                        .textAlign(TextAlign.Center)
+                        .width('100%')
+                        .padding({ left: 4, right: 4 })
+                    }
+                  }
+                  .layoutWeight(1)
+                  .alignItems(HorizontalAlign.Center)
+                  .onClick(() => {
+                    if (line.timeMs >= 0) {
+                      this.isManualLyricMode = true;
+                      this.manualLyricIndex = index;
+                      this.scheduleManualLyricReset();
+                      this.lyricScroller.scrollToIndex(index + 1, true, ScrollAlign.CENTER);
+                    }
+                  })
+
+                  if (this.manualLyricIndex === index) {
+                    Button() {
+                      Image($r('app.media.ic_play'))
+                        .width(16)
+                        .height(16)
+                        .fillColor(TEXT_PRIMARY)
+                    }
+                      .type(ButtonType.Circle)
+                      .width(28)
+                      .height(28)
+                      .backgroundColor('rgba(255,255,255,0.15)')
+                      .onClick(() => {
+                        if (line.timeMs >= 0) {
+                          this.engine.seekTo(line.timeMs).catch((error: Error) => {
+                            console.error(`lyric seek failed: ${error.message}`);
+                          });
+                          this.exitManualLyricMode(false);
+                        }
+                      })
+                  } else {
+                    Text('').width(28)
+                  }
+                }
+                .width('100%')
+                .alignItems(VerticalAlign.Center)
+                .padding({ left: 8, right: 8, top: 8, bottom: 8 })
+              }
+              .width('100%')
+            }
+          }, (line: ParsedLyricLine, index: number) => `${index}-${line.timeMs}-${line.text}`)
         }
-        .height(160)
-        .width('100%')
+
+        ListItem() {
+          Column() {
+            Blank()
+          }
+          .height(LYRIC_BOTTOM_SPACER_HEIGHT)
+          .width('100%')
+        }
+      }
+      .width('100%')
+      .height('100%')
+      .scrollBar(BarState.Off)
+      .onScrollIndex((start: number, end: number) => {
+        this.selectManualLyricByVisibleRange(start, end);
+      })
+      .onTouch((event: TouchEvent) => {
+        if (event.type === TouchType.Down || event.type === TouchType.Move) {
+          this.hasUserTouchedLyric = true;
+        }
+      })
+
+      if (this.isManualLyricMode) {
+        Row() {}
+          .width('92%')
+          .height(58)
+          .borderRadius(20)
+          .backgroundColor('rgba(255, 255, 255, 0.10)')
+          .border({
+            width: 1,
+            color: 'rgba(255, 255, 255, 0.18)',
+            style: BorderStyle.Solid
+          })
+          .hitTestBehavior(HitTestMode.None)
       }
     }
     .width('100%')
     .height('100%')
-    .scrollBar(BarState.Off)
-    .onClick(() => {
-      this.showLyric = false;
-      this.lastScrolledLyricIndex = -2;
-    })
   }
 
   private shouldShowTranslation(): boolean {
