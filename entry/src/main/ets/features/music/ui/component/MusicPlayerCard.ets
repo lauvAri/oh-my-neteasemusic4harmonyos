@@ -3,7 +3,7 @@ import { SongApi } from '../../data/api/SongApi';
 import { SongRepositoryImpl } from '../../data/repository/SongRepositoryImpl';
 import { SongArtist, SongDetail, SongPrivilege } from '../../domain/model/SongModels';
 import { GetSongDetailUseCase, SongDetailAggregate } from '../../domain/usecase/GetSongDetailUseCase';
-import { PlayerEngine } from '../../service/PlayerEngine';
+import { PlayerEngine, PlaybackMode } from '../../service/PlayerEngine';
 
 interface ParsedLyricLine {
   timeMs: number;
@@ -35,6 +35,7 @@ export struct MusicPlayerCard {
 
   @StorageLink('miniPlayerPlaying') private playing: boolean = false;
   @StorageLink('selectedSongId') @Watch('onSelectedSongChanged') private selectedSongId: number = 0;
+  @StorageLink('playbackMode') private playbackMode: number = 0;
   @StorageLink('playerCurrentMs') @Watch('onCurrentMsChanged') private currentMs: number = 0;
   @StorageLink('playerDurationMs') private durationMs: number = 0;
   @StorageLink('currentSongRawLyric') @Watch('onLyricStorageChanged') private rawLyricText: string = '';
@@ -318,6 +319,26 @@ export struct MusicPlayerCard {
     return `${minutes}:${secondText}`;
   }
 
+  private getPlaybackModeIcon(): Resource {
+    if (this.playbackMode === PlaybackMode.REPEAT_ONE) {
+      return $r('app.media.ic_repeat_one_play');
+    }
+    if (this.playbackMode === PlaybackMode.SHUFFLE) {
+      return $r('app.media.ic_shuffle_play');
+    }
+    return $r('app.media.ic_circle_play');
+  }
+
+  private getPlaybackModeLabel(): string {
+    if (this.playbackMode === PlaybackMode.REPEAT_ONE) {
+      return '单曲循环';
+    }
+    if (this.playbackMode === PlaybackMode.SHUFFLE) {
+      return '随机播放';
+    }
+    return '顺序播放';
+  }
+
   private async playSong(): Promise<void> {
     this.loading = true;
     this.statusText = '正在请求播放链接...';
@@ -340,6 +361,25 @@ export struct MusicPlayerCard {
     } catch (error) {
       promptAction.showToast({ message: '暂停失败' });
     }
+  }
+
+  @Builder
+  private PlaybackModeButton() {
+    Button() {
+      Image(this.getPlaybackModeIcon())
+        .width(26)
+        .height(26)
+        .fillColor(TEXT_PRIMARY)
+    }
+      .type(ButtonType.Circle)
+      .width(48)
+      .height(48)
+      .backgroundColor(Color.Transparent)
+      .stateEffect(true)
+      .onClick(() => {
+        this.engine.cyclePlaybackMode();
+        promptAction.showToast({ message: this.getPlaybackModeLabel() });
+      })
   }
 
   build() {
@@ -382,70 +422,82 @@ export struct MusicPlayerCard {
       .padding({ left: 16, right: 16 })
       .margin({ top: 2 })
 
-      Row({ space: 28 }) {
-        Button() {
-          Image($r('app.media.ic_skip_previous'))
-            .width(26)
-            .height(26)
-            .fillColor(TEXT_PRIMARY)
-        }
-          .type(ButtonType.Circle)
-          .width(52)
-          .height(52)
-          .backgroundColor(CONTROL_GRAY)
-          .onClick(async () => {
-            const moved = await this.engine.prev();
-            if (!moved) {
-              promptAction.showToast({ message: '已是第一首' });
-            }
-          })
+      Row({ space: 16 }) {
+        this.PlaybackModeButton()
 
-        Button() {
-          if (this.loading) {
-            LoadingProgress()
-              .width(28)
-              .height(28)
-              .color(TEXT_PRIMARY)
-          } else {
-            Image(this.playing ? $r('app.media.ic_pause') : $r('app.media.ic_play'))
-              .width(28)
-              .height(28)
+        Row({ space: 24 }) {
+          Button() {
+            Image($r('app.media.ic_skip_previous'))
+              .width(26)
+              .height(26)
               .fillColor(TEXT_PRIMARY)
           }
-        }
-          .type(ButtonType.Circle)
-          .width(68)
-          .height(68)
-          .backgroundColor(PLAY_BUTTON_GRAY)
-          .enabled(!this.loading)
-          .onClick(async () => {
-            if (this.playing) {
-              await this.pauseSong();
-            } else {
-              await this.playSong();
-            }
-          })
+            .type(ButtonType.Circle)
+            .width(48)
+            .height(48)
+            .backgroundColor(Color.Transparent)
+            .stateEffect(true)
+            .onClick(async () => {
+              const moved = await this.engine.prev();
+              if (!moved) {
+                promptAction.showToast({ message: '已是第一首' });
+              }
+            })
 
-        Button() {
-          Image($r('app.media.ic_skip_next'))
-            .width(26)
-            .height(26)
-            .fillColor(TEXT_PRIMARY)
-        }
-          .type(ButtonType.Circle)
-          .width(52)
-          .height(52)
-          .backgroundColor(CONTROL_GRAY)
-          .onClick(async () => {
-            const moved = await this.engine.next();
-            if (!moved) {
-              promptAction.showToast({ message: '已是最后一首' });
+          Button() {
+            if (this.loading) {
+              LoadingProgress()
+                .width(30)
+                .height(30)
+                .color(TEXT_PRIMARY)
+            } else {
+              Image(this.playing ? $r('app.media.ic_pause') : $r('app.media.ic_play'))
+                .width(30)
+                .height(30)
+                .fillColor(TEXT_PRIMARY)
             }
-          })
+          }
+            .type(ButtonType.Circle)
+            .width(70)
+            .height(70)
+            .backgroundColor(Color.Transparent)
+            .border({
+              width: 1.5,
+              color: 'rgba(255, 255, 255, 0.30)',
+              style: BorderStyle.Solid
+            })
+            .stateEffect(true)
+            .enabled(!this.loading)
+            .onClick(async () => {
+              if (this.playing) {
+                await this.pauseSong();
+              } else {
+                await this.playSong();
+              }
+            })
+
+          Button() {
+            Image($r('app.media.ic_skip_next'))
+              .width(26)
+              .height(26)
+              .fillColor(TEXT_PRIMARY)
+          }
+            .type(ButtonType.Circle)
+            .width(48)
+            .height(48)
+            .backgroundColor(Color.Transparent)
+            .stateEffect(true)
+            .onClick(async () => {
+              const moved = await this.engine.next();
+              if (!moved) {
+                promptAction.showToast({ message: '已是最后一首' });
+              }
+            })
+        }
       }
       .width('100%')
       .justifyContent(FlexAlign.Center)
-      .margin({ top: 14 })
+      .margin({ top: 18 })
 
       if (this.statusText.length > 0) {
         Text(this.statusText)
