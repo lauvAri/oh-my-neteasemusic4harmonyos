@@ -8,6 +8,12 @@ import { Song } from '../domain/model/Song';
 import { GetSongDetailUseCase, SongDetailAggregate } from '../domain/usecase/GetSongDetailUseCase';
 import { GetSongPlayUrlUseCase } from '../domain/usecase/GetSongPlayUrlUseCase';
 
+export enum PlaybackMode {
+  SEQUENTIAL = 0,
+  REPEAT_ONE = 1,
+  SHUFFLE = 2
+}
+
 export class PlayerEngine {
   private static instance: PlayerEngine | null = null;
 
@@ -29,6 +35,9 @@ export class PlayerEngine {
   private lyricRequestVersion: number = 0;
   private playQueue: Song[] = [];
   private currentQueueIndex: number = -1;
+  private playbackMode: PlaybackMode = PlaybackMode.SEQUENTIAL;
+  private shuffleOrder: number[] = [];
+  private shuffleCursor: number = -1;
 
   private constructor() {
     AppStorage.setOrCreate<boolean>('miniPlayerPlaying', false);
@@ -49,6 +58,7 @@ export class PlayerEngine {
     AppStorage.setOrCreate<boolean>('currentSongHasRomaji', false);
     AppStorage.setOrCreate<Song[]>('playQueue', []);
     AppStorage.setOrCreate<number>('currentQueueIndex', -1);
+    AppStorage.setOrCreate<number>('playbackMode', PlaybackMode.SEQUENTIAL);
   }
 
   static getInstance(): PlayerEngine {
@@ -196,11 +206,9 @@ export class PlayerEngine {
         if (state === 'completed') {
           const duration = this.avPlayer ? this.avPlayer.duration : 0;
           this.setProgress(duration, duration);
-          if (this.currentQueueIndex >= 0 && this.currentQueueIndex < this.playQueue.length - 1) {
-            this.next().catch((error: Error) => {
-              console.error(`auto advance failed: ${error.message}`);
-            });
-          }
+          this.handleTrackCompleted().catch((error: Error) => {
+            console.error(`auto advance failed: ${error.message}`);
+          });
         }
         this.stopProgressTimer();
       }
@@ -336,6 +344,9 @@ export class PlayerEngine {
     if (this.playQueue.length > 0) {
       const foundIndex = this.playQueue.findIndex((item: Song) => item.id === songId);
       if (foundIndex >= 0 && foundIndex !== this.currentQueueIndex) {
+        if (this.playbackMode === PlaybackMode.SHUFFLE) {
+          this.setShuffleOrder(foundIndex);
+        }
         this.currentQueueIndex = foundIndex;
         AppStorage.setOrCreate<number>('currentQueueIndex', this.currentQueueIndex);
       }
@@ -399,12 +410,103 @@ export class PlayerEngine {
     this.playQueue = songs.slice();
     this.currentQueueIndex = clampedIndex;
     this.setQueueState(this.playQueue, this.currentQueueIndex);
+    if (this.playbackMode === PlaybackMode.SHUFFLE) {
+      this.setShuffleOrder(clampedIndex);
+    }
     await this.playSong(this.playQueue[clampedIndex].id);
+  }
+
+  getPlaybackMode(): PlaybackMode {
+    return this.playbackMode;
+  }
+
+  cyclePlaybackMode(): PlaybackMode {
+    const next: PlaybackMode = (this.playbackMode + 1) % 3;
+    this.setPlaybackMode(next);
+    return next;
+  }
+
+  private setPlaybackMode(mode: PlaybackMode): void {
+    this.playbackMode = mode;
+    AppStorage.setOrCreate<number>('playbackMode', mode);
+    if (mode === PlaybackMode.SHUFFLE) {
+      if (this.playQueue.length > 0 && this.currentQueueIndex >= 0) {
+        this.setShuffleOrder(this.currentQueueIndex);
+      }
+    } else {
+      this.shuffleCursor = -1;
+    }
+  }
+
+  private setShuffleOrder(anchorIndex: number): void {
+    const total = this.playQueue.length;
+    if (total === 0) {
+      this.shuffleOrder = [];
+      this.shuffleCursor = -1;
+      return;
+    }
+    const safeAnchor = Math.max(0, Math.min(anchorIndex, total - 1));
+    const order: number[] = [];
+    for (let i = 0; i < total; i++) {
+      if (i !== safeAnchor) {
+        order.push(i);
+      }
+    }
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = order[i];
+      order[i] = order[j];
+      order[j] = tmp;
+    }
+    this.shuffleOrder = [safeAnchor, ...order];
+    this.shuffleCursor = 0;
+  }
+
+  private async advanceShuffle(step: number): Promise<boolean> {
+    if (this.shuffleOrder.length === 0) {
+      return false;
+    }
+    const nextCursor = this.shuffleCursor + step;
+    if (nextCursor < 0 || nextCursor >= this.shuffleOrder.length) {
+      return false;
+    }
+    this.shuffleCursor = nextCursor;
+    const nextIndex = this.shuffleOrder[this.shuffleCursor];
+    if (nextIndex < 0 || nextIndex >= this.playQueue.length) {
+      return false;
+    }
+    this.currentQueueIndex = nextIndex;
+    this.setQueueState(this.playQueue, this.currentQueueIndex);
+    await this.playSong(this.playQueue[this.currentQueueIndex].id);
+    return true;
+  }
+
+  private async handleTrackCompleted(): Promise<void> {
+    if (this.playbackMode === PlaybackMode.REPEAT_ONE) {
+      if (this.avPlayer) {
+        await this.avPlayer.seek(0);
+        await this.avPlayer.play();
+        this.setPlaying(true);
+        this.startProgressTimer();
+        await this.reportSessionState();
+      }
+      return;
+    }
+    if (this.playbackMode === PlaybackMode.SHUFFLE) {
+      await this.next();
+      return;
+    }
+    if (this.currentQueueIndex >= 0 && this.currentQueueIndex < this.playQueue.length - 1) {
+      await this.next();
+    }
   }
 
   async next(): Promise<boolean> {
     if (this.currentQueueIndex < 0 || this.playQueue.length === 0) {
       return false;
+    }
+    if (this.playbackMode === PlaybackMode.SHUFFLE) {
+      return this.advanceShuffle(1);
     }
     if (this.currentQueueIndex >= this.playQueue.length - 1) {
       return false;
@@ -416,7 +518,13 @@ export class PlayerEngine {
   }
 
   async prev(): Promise<boolean> {
-    if (this.currentQueueIndex <= 0 || this.playQueue.length === 0) {
+    if (this.currentQueueIndex < 0 || this.playQueue.length === 0) {
+      return false;
+    }
+    if (this.playbackMode === PlaybackMode.SHUFFLE) {
+      return this.advanceShuffle(-1);
+    }
+    if (this.currentQueueIndex <= 0) {
       return false;
     }
     this.currentQueueIndex -= 1;
