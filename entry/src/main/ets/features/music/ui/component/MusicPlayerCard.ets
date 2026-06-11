@@ -784,27 +784,6 @@ export struct MusicPlayerCard {
       .width('100%')
       .justifyContent(FlexAlign.Center)
       .margin({ top: 18 })
-
-      if (this.statusText.length > 0) {
-        Text(this.statusText)
-          .fontSize(11)
-          .fontColor(TEXT_TERTIARY)
-          .textAlign(TextAlign.Center)
-          .margin({ top: 8 })
-      }
-
-      if (this.songDetail) {
-        Row({ space: 12 }) {
-          Text(`时长 ${this.getDurationText()}`)
-            .fontSize(11)
-            .fontColor(TEXT_MUTED)
-          Text(`音质上限 ${this.getQualityText()}`)
-            .fontSize(11)
-            .fontColor(TEXT_MUTED)
-        }
-        .margin({ top: 4 })
-        .justifyContent(FlexAlign.Center)
-      }
     }
     .width('100%')
     .height('100%')
@@ -819,7 +798,6 @@ export struct MusicPlayerCard {
       }
     })
   }
-
   @Builder
   private LyricModeRow() {
     Row() {
