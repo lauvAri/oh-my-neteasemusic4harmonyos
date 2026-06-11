@@ -13,10 +13,15 @@ This is a HarmonyOS ArkTS app. Main module code is under `entry/`.
 ## Build, Test, and Development Commands
 Use DevEco Studio toolchain for builds:
 
-- If the build fails with `ERROR: 00303217 Configuration Error: Invalid value of 'DEVECO_SDK_HOME' in the system environment path.`, stop the cached hvigor daemon first:
-  `"C:\Program Files\Huawei\DevEco Studio\tools\node\node.exe" "C:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.js" --stop-daemon`
-  Then re-run the build command below (the daemon will restart automatically).
-- Build HAP:
+- If the build fails with `ERROR: 00303217 Configuration Error: Invalid value of 'DEVECO_SDK_HOME' in the system environment path.`, set `DEVECO_SDK_HOME` inline and retry (the `--stop-daemon` approach alone does not always clear the cached value):
+  ```
+  DEVECO_SDK_HOME="C:\Program Files\Huawei\DevEco Studio\sdk" "C:\Program Files\Huawei\DevEco Studio\tools\node\node.exe" "C:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.js" --stop-daemon
+  ```
+  Then re-run the build with `DEVECO_SDK_HOME` set:
+  ```
+  DEVECO_SDK_HOME="C:\Program Files\Huawei\DevEco Studio\sdk" "C:\Program Files\Huawei\DevEco Studio\tools\node\node.exe" "C:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.js" --mode module -p module=entry@default -p product=default -p requiredDeviceType=phone assembleHap --analyze=normal --parallel --incremental --daemon
+  ```
+- Build HAP (without `DEVECO_SDK_HOME` if it is set system-wide):
   `"C:\Program Files\Huawei\DevEco Studio\tools\node\node.exe" "C:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.js" --mode module -p module=entry@default -p product=default -p requiredDeviceType=phone assembleHap --analyze=normal --parallel --incremental --daemon`
 - Notes:
   this repository currently has `@ohos/hypium` and `@ohos/hamock` dependencies, but no dedicated test command is defined.
