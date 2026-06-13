@@ -6,7 +6,8 @@ import {
   SearchSongResponse,
   SearchAlbumResponse,
   SearchArtistResponse,
-  SearchPlaylistResponse
+  SearchPlaylistResponse,
+  SearchSuggestResponse
 } from '../../domain/model/SearchModels';
 
 export class SearchApi {
@@ -35,5 +36,10 @@ export class SearchApi {
 
   async searchPlaylists(keywords: string, offset: number, limit: number): Promise<SearchPlaylistResponse> {
     return this.httpClient.post<SearchPlaylistResponse>(this.buildPath(keywords, 1000, offset, limit));
+  }
+
+  async searchSuggest(keywords: string): Promise<SearchSuggestResponse> {
+    const encoded = encodeURIComponent(keywords);
+    return this.httpClient.post<SearchSuggestResponse>(`/search/suggest?keywords=${encoded}`);
   }
 }

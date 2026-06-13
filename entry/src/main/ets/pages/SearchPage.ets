@@ -1,6 +1,7 @@
 import { promptAction } from '@kit.ArkUI';
 import common from '@ohos.app.ability.common';
 import { HotSearchList } from '../features/search/ui/component/HotSearchList';
+import { SearchSuggestList } from '../features/search/ui/component/SearchSuggestList';
 import { SearchTabBar } from '../features/search/ui/component/SearchTabBar';
 import { SearchSongResultList } from '../features/search/ui/component/SearchSongResultList';
 import { SearchAlbumResultList } from '../features/search/ui/component/SearchAlbumResultList';
@@ -13,10 +14,13 @@ import {
   SearchSongItem,
   SearchAlbumItem,
   SearchArtistItem,
-  SearchPlaylistItem
+  SearchPlaylistItem,
+  SearchSuggestResult,
+  SearchSuggestNameItem
 } from '../features/search/domain/model/SearchModels';
 import { mapSearchSongToSong } from '../features/search/domain/SearchSongMapper';
 import { Song } from '../features/music/domain/model/Song';
+import { Debouncer } from '../common/util/Debouncer';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const DOMAIN = 0x0000;
@@ -59,7 +63,12 @@ export struct SearchPage {
   @State private artistError: string = '';
   @State private playlistError: string = '';
 
+  @State private suggestKeywords: string[] = [];
+  @State private suggestLoading: boolean = false;
+
   private api?: SearchApi;
+  private suggestDebouncer: Debouncer = new Debouncer(300);
+  private suggestRequestId: number = 0;
   @Consume('pathStack') pathStack: NavPathStack;
 
   aboutToAppear(): void {
@@ -74,6 +83,10 @@ export struct SearchPage {
       promptAction.showToast({ message: '请输入搜索关键词' });
       return;
     }
+
+    this.suggestDebouncer.cancel();
+    this.suggestKeywords = [];
+    this.suggestLoading = false;
 
     this.keyword = word;
     this.submittedKeyword = word;
@@ -100,6 +113,70 @@ export struct SearchPage {
     this.playlistError = '';
 
     this.fetchActiveTabFirstPage();
+  }
+
+  private scheduleSuggest(value: string): void {
+    const word = value.trim();
+    if (word.length === 0) {
+      this.suggestDebouncer.cancel();
+      this.suggestKeywords = [];
+      this.suggestLoading = false;
+      return;
+    }
+    this.suggestDebouncer.schedule(() => {
+      this.fetchSuggest(word);
+    });
+  }
+
+  private async fetchSuggest(word: string): Promise<void> {
+    if (this.api === undefined) {
+      return;
+    }
+    const requestId = ++this.suggestRequestId;
+    this.suggestLoading = true;
+    try {
+      const response = await this.api.searchSuggest(word);
+      // 丢弃过期响应，避免竞态时把旧联想词刷到界面上
+      if (requestId !== this.suggestRequestId) {
+        return;
+      }
+      this.suggestKeywords = this.extractSuggestKeywords(response.result);
+    } catch (error) {
+      if (requestId === this.suggestRequestId) {
+        this.suggestKeywords = [];
+      }
+    } finally {
+      if (requestId === this.suggestRequestId) {
+        this.suggestLoading = false;
+      }
+    }
+  }
+
+  // 后端 /search/suggest 返回多类型结果（songs/artists/albums），而非关键词列表。
+  // 这里按 songs → artists → albums 顺序提取名称、去重、截断为联想词条。
+  private extractSuggestKeywords(result: SearchSuggestResult | undefined): string[] {
+    if (result === undefined) {
+      return [];
+    }
+    const merged: SearchSuggestNameItem[] = [
+      ...(result.songs ?? []),
+      ...(result.artists ?? []),
+      ...(result.albums ?? [])
+    ];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const item of merged) {
+      const name = (item.name ?? '').trim();
+      if (name.length === 0 || seen.has(name)) {
+        continue;
+      }
+      seen.add(name);
+      out.push(name);
+      if (out.length >= 10) {
+        break;
+      }
+    }
+    return out;
   }
 
   private onTabChange(newTab: SearchType): void {
@@ -291,6 +368,7 @@ export struct SearchPage {
           .padding({ left: 16, right: 16 })
           .onChange((value: string) => {
             this.keyword = value;
+            this.scheduleSuggest(value);
           })
           .onSubmit(() => {
             this.submitWithKeyword(this.keyword);
@@ -322,24 +400,34 @@ export struct SearchPage {
       }
 
       if (this.submittedKeyword.length === 0) {
-        Column({ space: 8 }) {
-          Row() {
-            Text('热搜榜')
-              .fontSize(18)
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('app.color.text_primary'))
-              .layoutWeight(1)
-          }
-          .width('100%')
-
-          HotSearchList({
+        if (this.keyword.trim().length > 0) {
+          SearchSuggestList({
+            keywords: this.suggestKeywords,
+            loading: this.suggestLoading,
             onItemClick: (word: string): void => {
               this.submitWithKeyword(word);
             }
           })
+        } else {
+          Column({ space: 8 }) {
+            Row() {
+              Text('热搜榜')
+                .fontSize(18)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.text_primary'))
+                .layoutWeight(1)
+            }
+            .width('100%')
+
+            HotSearchList({
+              onItemClick: (word: string): void => {
+                this.submitWithKeyword(word);
+              }
+            })
+          }
+          .layoutWeight(1)
+          .width('100%')
         }
-        .layoutWeight(1)
-        .width('100%')
       } else {
         if (this.activeTab === 'song') {
           SearchSongResultList({

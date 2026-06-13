@@ -134,3 +134,19 @@ export interface SearchPlaylistResponse {
   code: number;
   result: SearchPlaylistResult;
 }
+
+export interface SearchSuggestNameItem {
+  name: string;
+}
+
+export interface SearchSuggestResult {
+  songs?: SearchSuggestNameItem[];
+  artists?: SearchSuggestNameItem[];
+  albums?: SearchSuggestNameItem[];
+  order?: string[];
+}
+
+export interface SearchSuggestResponse {
+  code: number;
+  result: SearchSuggestResult;
+}
