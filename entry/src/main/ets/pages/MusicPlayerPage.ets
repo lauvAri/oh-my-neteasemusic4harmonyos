@@ -156,7 +156,7 @@ struct MusicPlayerPage {
         .type(ButtonType.Circle)
         .width(BACK_BUTTON_SIZE_VP)
         .height(BACK_BUTTON_SIZE_VP)
-        .backgroundColor('#40ffffff')
+        .backgroundColor(Color.Transparent)
         .onClick(() => {
           router.back();
         })

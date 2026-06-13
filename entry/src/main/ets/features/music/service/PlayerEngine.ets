@@ -2,6 +2,7 @@ import media from '@ohos.multimedia.media';
 import avSessionManager from '@ohos.multimedia.avsession';
 import common from '@ohos.app.ability.common';
 import { SongApi } from '../data/api/SongApi';
+import { LikeApi } from '../data/api/LikeApi';
 import { SongRepositoryImpl } from '../data/repository/SongRepositoryImpl';
 import { LyricResponse, LyricSection } from '../domain/model/SongModels';
 import { Song } from '../domain/model/Song';
@@ -28,6 +29,7 @@ export class PlayerEngine {
   private progressTimerId: number = -1;
   private session: avSessionManager.AVSession | null = null;
   private sessionInited: boolean = false;
+  private lastReportedDuration: number = 0;
   private currentTitle: string = '未选择歌曲';
   private currentArtist: string = '';
   private currentCover: string = '';
@@ -59,6 +61,7 @@ export class PlayerEngine {
     AppStorage.setOrCreate<Song[]>('playQueue', []);
     AppStorage.setOrCreate<number>('currentQueueIndex', -1);
     AppStorage.setOrCreate<number>('playbackMode', PlaybackMode.SEQUENTIAL);
+    AppStorage.setOrCreate<boolean>('currentSongLiked', false);
   }
 
   static getInstance(): PlayerEngine {
@@ -72,6 +75,7 @@ export class PlayerEngine {
     if (this.sessionInited) {
       return;
     }
+    this.repository.setLikeApi(new LikeApi(context));
     this.session = await avSessionManager.createAVSession(context, 'netease_music_session', 'audio');
 
     this.session.on('play', async () => {
@@ -80,14 +84,52 @@ export class PlayerEngine {
     this.session.on('pause', async () => {
       await this.pause();
     });
+    this.session.on('playNext', async () => {
+      await this.next();
+    });
+    this.session.on('playPrevious', async () => {
+      await this.prev();
+    });
     this.session.on('seek', async (position: number) => {
       await this.seekTo(position);
+    });
+    this.session.on('toggleFavorite', async () => {
+      await this.toggleFavorite();
+    });
+    this.session.on('setLoopMode', (mode: avSessionManager.LoopMode) => {
+      this.applyLoopMode(mode);
     });
 
     await this.session.activate();
     this.sessionInited = true;
     await this.reportSessionMetadata();
     await this.reportSessionState();
+    this.refreshCurrentSongLiked();
+  }
+
+  private refreshCurrentSongLiked(): void {
+    const liked = this.currentSongId > 0 && SongRepositoryImpl.isLikedSong(this.currentSongId);
+    AppStorage.setOrCreate<boolean>('currentSongLiked', liked);
+  }
+
+  async toggleFavorite(): Promise<void> {
+    const songId = this.currentSongId;
+    if (songId <= 0) {
+      return;
+    }
+    const liked = SongRepositoryImpl.isLikedSong(songId);
+    try {
+      await this.repository.toggleSongLike(songId, !liked);
+      if (liked) {
+        SongRepositoryImpl.removeLikedSongId(songId);
+      } else {
+        SongRepositoryImpl.addLikedSongId(songId);
+      }
+      AppStorage.setOrCreate<boolean>('currentSongLiked', !liked);
+      await this.reportSessionState();
+    } catch (error) {
+      console.error(`toggle favorite failed: ${(error as Error).message}`);
+    }
   }
 
   private setPlaying(playing: boolean): void {
@@ -159,14 +201,48 @@ export class PlayerEngine {
       return;
     }
     const position = AppStorage.get<number>('playerCurrentMs') ?? 0;
+    const duration = AppStorage.get<number>('playerDurationMs') ?? 0;
+    if (duration > 0 && duration !== this.lastReportedDuration) {
+      this.lastReportedDuration = duration;
+      await this.reportSessionMetadata();
+    }
     await this.session.setAVPlaybackState({
       state: this.mapPlaybackState(),
       position: {
         elapsedTime: position,
         updateTime: Date.now()
       },
-      speed: 1
+      speed: 1,
+      isFavorite: this.currentSongId > 0 && SongRepositoryImpl.isLikedSong(this.currentSongId),
+      loopMode: this.mapLoopMode()
     });
+  }
+
+  private mapLoopMode(): avSessionManager.LoopMode {
+    switch (this.playbackMode) {
+      case PlaybackMode.REPEAT_ONE:
+        return avSessionManager.LoopMode.LOOP_MODE_SINGLE;
+      case PlaybackMode.SHUFFLE:
+        return avSessionManager.LoopMode.LOOP_MODE_SHUFFLE;
+      default:
+        return avSessionManager.LoopMode.LOOP_MODE_SEQUENCE;
+    }
+  }
+
+  private applyLoopMode(mode: avSessionManager.LoopMode): void {
+    let target: PlaybackMode;
+    switch (mode) {
+      case avSessionManager.LoopMode.LOOP_MODE_SINGLE:
+        target = PlaybackMode.REPEAT_ONE;
+        break;
+      case avSessionManager.LoopMode.LOOP_MODE_SHUFFLE:
+        target = PlaybackMode.SHUFFLE;
+        break;
+      default:
+        target = PlaybackMode.SEQUENTIAL;
+        break;
+    }
+    this.setPlaybackMode(target);
   }
 
   private startProgressTimer(): void {
@@ -273,6 +349,7 @@ export class PlayerEngine {
       this.currentCover = '';
       this.setSongMeta(`歌曲 ${songId}`, '详情加载失败', '');
     }
+    this.refreshCurrentSongLiked();
     await this.reportSessionMetadata();
   }
 
@@ -372,8 +449,12 @@ export class PlayerEngine {
     this.setLyricState('', '', '', true);
     await this.reportSessionMetadata();
     await this.reportSessionState();
-    await this.loadSongMeta(songId);
-    await this.loadSongLyric(songId);
+    this.loadSongMeta(songId).catch((error: Error) => {
+      console.error(`load song meta failed: ${error.message}`);
+    });
+    this.loadSongLyric(songId).catch((error: Error) => {
+      console.error(`load song lyric failed: ${error.message}`);
+    });
 
     const playUrl = await this.getSongPlayUrlUseCase.execute(songId);
     if ((AppStorage.get<number>('selectedSongId') ?? 0) !== songId) {
@@ -436,6 +517,9 @@ export class PlayerEngine {
     } else {
       this.shuffleCursor = -1;
     }
+    this.reportSessionState().catch((error: Error) => {
+      console.error(`report loopMode failed: ${error.message}`);
+    });
   }
 
   private setShuffleOrder(anchorIndex: number): void {

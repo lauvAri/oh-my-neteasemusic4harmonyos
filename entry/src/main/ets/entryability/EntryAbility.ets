@@ -1,6 +1,7 @@
 import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
+import { PlayerEngine } from '../features/music/service/PlayerEngine';
 
 const DOMAIN = 0x0000;
 
@@ -15,6 +16,9 @@ export default class EntryAbility extends UIAbility {
       ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK
       : ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT;
     AppStorage.setOrCreate<number>('currentColorMode', initial);
+    PlayerEngine.getInstance().initSession(this.context).catch((err: Error) => {
+      hilog.error(DOMAIN, 'testTag', 'Failed to init AVSession. Cause: %{public}s', err.message);
+    });
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
   }
 

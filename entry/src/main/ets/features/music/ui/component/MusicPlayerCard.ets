@@ -9,6 +9,7 @@ import { GetSongDetailUseCase, SongDetailAggregate } from '../../domain/usecase/
 import { PlayerEngine, PlaybackMode } from '../../service/PlayerEngine';
 import { Song } from '../../domain/model/Song';
 import { SessionStore } from '../../../../common/storage/SessionStore';
+import { VinylCover } from '../../../../common/ui/VinylCover';
 
 interface ParsedLyricLine {
   timeMs: number;
@@ -72,7 +73,7 @@ export struct MusicPlayerCard {
   @State private secondaryMode: LyricSecondaryMode = LyricSecondaryMode.TRANSLATION;
   @State private showOnlyTranslation: boolean = true;
   @State private activeSheet: ActiveSheet | null = null;
-  @State private isLiked: boolean = false;
+  @StorageLink('currentSongLiked') private isLiked: boolean = false;
   @State private likePending: boolean = false;
   @State private manualLyricIndex: number = -1;
   @State private isManualLyricMode: boolean = false;
@@ -103,7 +104,11 @@ export struct MusicPlayerCard {
     // Preload liked song list if not yet loaded
     const userId = AppStorage.get<number>('userId');
     if (userId !== undefined && userId > 0) {
-      this.songRepository.loadLikedSongIds(userId, context).catch((_e: Error) => {});
+      this.songRepository.loadLikedSongIds(userId, context)
+        .then(() => {
+          this.isLiked = SongRepositoryImpl.isLikedSong(this.getActiveSongId());
+        })
+        .catch((_e: Error) => {});
     }
   }
 
@@ -1066,12 +1071,10 @@ export struct MusicPlayerCard {
   @Builder
   private CoverView() {
     Column({ space: 18 }) {
-      Image(this.songDetail ? this.songDetail.al.picUrl : '')
-        .width('86%')
-        .aspectRatio(1)
-        .borderRadius(28)
-        .objectFit(ImageFit.Cover)
-        .shadow(ShadowStyle.OUTER_DEFAULT_MD)
+      VinylCover({
+        coverUrl: this.songDetail ? this.songDetail.al.picUrl : '',
+        discPercent: '86%'
+      })
 
       Column({ space: 4 }) {
         Text(this.songDetail ? this.songDetail.name : '')
