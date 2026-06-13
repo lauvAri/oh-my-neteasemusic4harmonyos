@@ -1,6 +1,7 @@
 import { router } from '@kit.ArkUI';
 import { MusicPlayerCard } from '../features/music/ui/component/MusicPlayerCard';
 import { PlayerBackgroundPalette, PlayerBackgroundResolver } from '../features/music/ui/background/PlayerBackgroundResolver';
+import { AutoScrollText } from '../common/ui/AutoScrollText';
 
 const BACK_BUTTON_SIZE_VP: number = 48;
 const BACK_BUTTON_ICON_VP: number = 24;
@@ -161,14 +162,13 @@ struct MusicPlayerPage {
           router.back();
         })
 
-      Text(this.miniPlayerTitle)
-        .fontSize(14)
-        .fontColor('rgba(255, 255, 255, 0.85)')
-        .fontWeight(FontWeight.Medium)
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      AutoScrollText({
+        text: this.miniPlayerTitle,
+        fontSize: 14,
+        fontWeight: FontWeight.Medium,
+        fontColor: 'rgba(255, 255, 255, 0.85)'
+      })
         .layoutWeight(1)
-        .textAlign(TextAlign.Center)
         .margin({ left: 12, right: 12 })
     }
     .width('100%')

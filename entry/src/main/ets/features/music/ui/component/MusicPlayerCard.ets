@@ -10,6 +10,7 @@ import { PlayerEngine, PlaybackMode } from '../../service/PlayerEngine';
 import { Song } from '../../domain/model/Song';
 import { SessionStore } from '../../../../common/storage/SessionStore';
 import { VinylCover } from '../../../../common/ui/VinylCover';
+import { AutoScrollText } from '../../../../common/ui/AutoScrollText';
 
 interface ParsedLyricLine {
   timeMs: number;
@@ -1077,14 +1078,13 @@ export struct MusicPlayerCard {
       })
 
       Column({ space: 4 }) {
-        Text(this.songDetail ? this.songDetail.name : '')
-          .fontSize(22)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(TEXT_PRIMARY)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        AutoScrollText({
+          text: this.songDetail ? this.songDetail.name : '',
+          fontSize: 22,
+          fontWeight: FontWeight.Bold,
+          fontColor: TEXT_PRIMARY
+        })
           .width('100%')
-          .textAlign(TextAlign.Center)
 
         if (this.getAliasText().length > 0) {
           Text(this.getAliasText())
