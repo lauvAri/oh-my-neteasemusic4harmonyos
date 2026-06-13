@@ -170,6 +170,11 @@ struct MusicPlayerPage {
       })
         .layoutWeight(1)
         .margin({ left: 12, right: 12 })
+
+      // 右侧占位，宽度与左侧返回按钮一致，使标题可用区域关于屏幕中线对称、标题真正居中。
+      Column()
+        .width(BACK_BUTTON_SIZE_VP)
+        .height(BACK_BUTTON_SIZE_VP)
     }
     .width('100%')
     .padding({
