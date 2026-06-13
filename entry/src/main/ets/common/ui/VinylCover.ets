@@ -5,15 +5,13 @@ const VINYL_DEGREES_PER_TICK: number =
 
 const VINYL_DISC_COLOR: string = '#0b0b0b';
 const VINYL_GROOVE_COLOR: string = 'rgba(255, 255, 255, 0.05)';
-const VINYL_HOLE_COLOR: string = '#000000';
-const VINYL_CENTER_HOLE_VP: number = 14;
 
 // 唱片刻槽：外圈一圈圈同心细环（仅在封面之外的边缘环带可见）
 const GROOVE_PERCENTS: number[] = [98, 95, 92, 89, 86, 83, 80, 77, 74];
 
 /**
  * 圆形旋转黑胶封面：播放时封面持续旋转，暂停时在当前角度定格。
- * 黑色带纹路唱片刻槽与中心 spindle 小孔保持静止，仅封面标签旋转。
+ * 黑色带纹路唱片刻槽保持静止，仅封面标签旋转。
  */
 @Component
 export struct VinylCover {
@@ -90,13 +88,6 @@ export struct VinylCover {
         .objectFit(ImageFit.Cover)
         .clip(true)
         .rotate({ angle: this.coverAngle })
-
-      // ③ 中心 spindle 小孔（静止）
-      Column()
-        .width(VINYL_CENTER_HOLE_VP)
-        .height(VINYL_CENTER_HOLE_VP)
-        .borderRadius('50%')
-        .backgroundColor(VINYL_HOLE_COLOR)
     }
     .width(this.discPercent)
     .aspectRatio(1)
