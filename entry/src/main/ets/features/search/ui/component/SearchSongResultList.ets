@@ -46,41 +46,69 @@ export struct SearchSongResultList {
     }
   }
 
+  private async playNextSong(song: Song): Promise<void> {
+    try {
+      await this.engine.playNext(song);
+      promptAction.showToast({ message: '已添加到下一首播放' });
+    } catch (error) {
+      promptAction.showToast({ message: `添加失败：${(error as Error).message}` });
+    }
+  }
+
   @Builder
   private songRow(song: Song, index: number) {
     Row({ space: 12 }) {
-      Text(`${index + 1}`)
-        .fontSize(13)
-        .fontColor(this.selectedSongId === song.id ? $r('app.color.text_brand') : $r('app.color.text_tertiary'))
-        .width(24)
-        .textAlign(TextAlign.Center)
+      Row({ space: 12 }) {
+        Text(`${index + 1}`)
+          .fontSize(13)
+          .fontColor(this.selectedSongId === song.id ? $r('app.color.text_brand') : $r('app.color.text_tertiary'))
+          .width(24)
+          .textAlign(TextAlign.Center)
 
-      Column({ space: 4 }) {
-        Text(song.name)
-          .fontSize(15)
-          .fontWeight(this.selectedSongId === song.id ? FontWeight.Medium : FontWeight.Regular)
-          .fontColor($r('app.color.text_primary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Column({ space: 4 }) {
+          Text(song.name)
+            .fontSize(15)
+            .fontWeight(this.selectedSongId === song.id ? FontWeight.Medium : FontWeight.Regular)
+            .fontColor($r('app.color.text_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-        Text(`${this.getArtistNames(song)} - ${song.al.name}`)
-          .fontSize(12)
-          .fontColor($r('app.color.text_quaternary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(`${this.getArtistNames(song)} - ${song.al.name}`)
+            .fontSize(12)
+            .fontColor($r('app.color.text_quaternary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
       }
       .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
+      .onClick(() => {
+        void this.playSong(song, index);
+      })
 
       Text(this.getDurationText(song))
         .fontSize(12)
         .fontColor($r('app.color.text_tertiary'))
+        .width(38)
+        .textAlign(TextAlign.End)
+
+      Button() {
+        Image($r('app.media.ic_playlist_add'))
+          .width(20)
+          .height(20)
+          .fillColor($r('app.color.text_tertiary'))
+      }
+        .type(ButtonType.Circle)
+        .width(40)
+        .height(40)
+        .backgroundColor(Color.Transparent)
+        .onClick(() => {
+          void this.playNextSong(song);
+        })
     }
     .width('100%')
     .padding({ top: 8, bottom: 8 })
-    .onClick(() => {
-      void this.playSong(song, index);
-    })
   }
 
   @Builder

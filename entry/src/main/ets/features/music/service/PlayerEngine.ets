@@ -546,6 +546,62 @@ export class PlayerEngine {
     this.shuffleCursor = 0;
   }
 
+  private setShuffleOrderWithNext(anchorIndex: number, nextIndex: number): void {
+    const total = this.playQueue.length;
+    if (total === 0) {
+      this.shuffleOrder = [];
+      this.shuffleCursor = -1;
+      return;
+    }
+    const safeAnchor = Math.max(0, Math.min(anchorIndex, total - 1));
+    const safeNext = Math.max(0, Math.min(nextIndex, total - 1));
+    const order: number[] = [];
+    for (let i = 0; i < total; i++) {
+      if (i !== safeAnchor && i !== safeNext) {
+        order.push(i);
+      }
+    }
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = order[i];
+      order[i] = order[j];
+      order[j] = tmp;
+    }
+    this.shuffleOrder = safeAnchor === safeNext ? [safeAnchor, ...order] : [safeAnchor, safeNext, ...order];
+    this.shuffleCursor = 0;
+  }
+
+  async playNext(song: Song): Promise<void> {
+    if (this.playQueue.length === 0 || this.currentQueueIndex < 0 ||
+      this.currentQueueIndex >= this.playQueue.length) {
+      await this.setQueue([song], 0);
+      return;
+    }
+
+    if (this.playQueue[this.currentQueueIndex].id === song.id) {
+      return;
+    }
+
+    const nextQueue = this.playQueue.slice();
+    let currentIndex = this.currentQueueIndex;
+    const existingIndex = nextQueue.findIndex((item: Song) => item.id === song.id);
+    if (existingIndex >= 0) {
+      nextQueue.splice(existingIndex, 1);
+      if (existingIndex < currentIndex) {
+        currentIndex -= 1;
+      }
+    }
+
+    const insertIndex = Math.min(currentIndex + 1, nextQueue.length);
+    nextQueue.splice(insertIndex, 0, song);
+    this.playQueue = nextQueue;
+    this.currentQueueIndex = currentIndex;
+    this.setQueueState(this.playQueue, this.currentQueueIndex);
+    if (this.playbackMode === PlaybackMode.SHUFFLE) {
+      this.setShuffleOrderWithNext(this.currentQueueIndex, insertIndex);
+    }
+  }
+
   private async advanceShuffle(step: number): Promise<boolean> {
     if (this.shuffleOrder.length === 0) {
       return false;

@@ -114,6 +114,15 @@ export struct ArtistDetailPage {
     router.pushUrl({ url: 'pages/MusicPlayerPage', params: { songId: song.id } });
   }
 
+  private async playNextSong(song: Song): Promise<void> {
+    try {
+      await this.engine.playNext(song);
+      promptAction.showToast({ message: '已添加到下一首播放' });
+    } catch (error) {
+      promptAction.showToast({ message: `添加失败：${(error as Error).message}` });
+    }
+  }
+
   private formatCount(count: number): string {
     if (count >= 100000000) {
       return `${(count / 100000000).toFixed(1)}亿`;
@@ -301,6 +310,9 @@ export struct ArtistDetailPage {
                       callbacks: {
                         onSongClick: (song: Song, index: number) => {
                           this.playSong(song, index);
+                        },
+                        onPlayNextClick: (song: Song) => {
+                          this.playNextSong(song);
                         }
                       } as SongListCallbacks
                     })

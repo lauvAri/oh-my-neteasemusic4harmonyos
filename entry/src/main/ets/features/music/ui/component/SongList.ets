@@ -3,6 +3,7 @@ import { SongArtist } from '../../domain/model/SongModels';
 
 export interface SongListCallbacks {
   onSongClick: (song: Song, index: number) => void;
+  onPlayNextClick?: (song: Song, index: number) => void;
 }
 
 export class SongListDataSource implements IDataSource {
@@ -73,39 +74,62 @@ export struct SongList {
   private songRow(song: Song, index: number) {
     Column() {
       Row({ space: 12 }) {
-        Text(`${index + 1}`)
-          .fontSize(13)
-          .fontColor(this.selectedSongId === song.id ? $r('app.color.text_brand') : $r('app.color.text_tertiary'))
-          .width(24)
-          .textAlign(TextAlign.Center)
+        Row({ space: 12 }) {
+          Text(`${index + 1}`)
+            .fontSize(13)
+            .fontColor(this.selectedSongId === song.id ? $r('app.color.text_brand') : $r('app.color.text_tertiary'))
+            .width(24)
+            .textAlign(TextAlign.Center)
 
-        Image(song.al.picUrl)
-          .width(48)
-          .height(48)
-          .borderRadius(6)
-          .objectFit(ImageFit.Cover)
+          Image(song.al.picUrl)
+            .width(48)
+            .height(48)
+            .borderRadius(6)
+            .objectFit(ImageFit.Cover)
 
-        Column({ space: 4 }) {
-          Text(song.name)
-            .fontSize(15)
-            .fontWeight(this.selectedSongId === song.id ? FontWeight.Medium : FontWeight.Regular)
-            .fontColor(this.selectedSongId === song.id ? $r('app.color.text_brand') : $r('app.color.text_primary'))
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Column({ space: 4 }) {
+            Text(song.name)
+              .fontSize(15)
+              .fontWeight(this.selectedSongId === song.id ? FontWeight.Medium : FontWeight.Regular)
+              .fontColor(this.selectedSongId === song.id ? $r('app.color.text_brand') : $r('app.color.text_primary'))
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-          Text(`${this.getArtistNames(song)} - ${song.al.name}`)
-            .fontSize(12)
-            .fontColor($r('app.color.text_quaternary'))
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            Text(`${this.getArtistNames(song)} - ${song.al.name}`)
+              .fontSize(12)
+              .fontColor($r('app.color.text_quaternary'))
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
         }
         .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
+        .onClick(() => {
+          this.callbacks.onSongClick(song, index);
+        })
 
         Text(this.getDurationText(song))
           .fontSize(12)
           .fontColor($r('app.color.text_tertiary'))
-          .margin({ right: 4 })
+          .width(38)
+          .textAlign(TextAlign.End)
+
+        Button() {
+          Image($r('app.media.ic_playlist_add'))
+            .width(20)
+            .height(20)
+            .fillColor($r('app.color.text_tertiary'))
+        }
+          .type(ButtonType.Circle)
+          .width(40)
+          .height(40)
+          .backgroundColor(Color.Transparent)
+          .onClick(() => {
+            if (this.callbacks.onPlayNextClick !== undefined) {
+              this.callbacks.onPlayNextClick(song, index);
+            }
+          })
       }
       .width('100%')
       .padding({ top: 10, bottom: 10 })
@@ -117,9 +141,6 @@ export struct SongList {
       }
     }
     .width('100%')
-    .onClick(() => {
-      this.callbacks.onSongClick(song, index);
-    })
   }
 
   build() {

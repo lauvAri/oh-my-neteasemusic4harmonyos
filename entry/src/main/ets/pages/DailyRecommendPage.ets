@@ -61,6 +61,15 @@ export struct DailyRecommendPage {
     }
   }
 
+  private async playNextSong(song: Song): Promise<void> {
+    try {
+      await this.engine.playNext(song);
+      promptAction.showToast({ message: '已添加到下一首播放' });
+    } catch (error) {
+      promptAction.showToast({ message: `添加失败：${(error as Error).message}` });
+    }
+  }
+
   private getBottomPadding(): number {
     return getSubpageBottomPaddingVp(this.miniPlayerVisible);
   }
@@ -130,6 +139,9 @@ export struct DailyRecommendPage {
             callbacks: {
               onSongClick: (song: Song, index: number): void => {
                 void this.playSong(song, index);
+              },
+              onPlayNextClick: (song: Song): void => {
+                void this.playNextSong(song);
               }
             }
           })
