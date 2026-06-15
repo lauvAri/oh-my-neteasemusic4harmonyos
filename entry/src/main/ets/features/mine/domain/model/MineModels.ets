@@ -9,6 +9,7 @@ export interface UserPlaylistItem {
   coverImgUrl: string;
   trackCount: number;
   playCount: number;
+  specialType: number;
   creator: UserPlaylistCreator;
 }
 

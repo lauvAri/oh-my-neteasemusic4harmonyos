@@ -101,7 +101,7 @@ export struct UserCreatedPlaylistsPage {
   }
 
   private isProtectedPlaylist(playlist: UserPlaylistItem): boolean {
-    return playlist.id === this.likedPlaylistId || playlist.name === '我喜欢的音乐';
+    return playlist.specialType === 5 || playlist.id === this.likedPlaylistId;
   }
 
   private openManageSheet(playlist: UserPlaylistItem): void {
@@ -213,6 +213,7 @@ export struct UserCreatedPlaylistsPage {
           coverImgUrl: item.coverImgUrl,
           trackCount: item.trackCount,
           playCount: item.playCount,
+          specialType: item.specialType,
           creator: item.creator
         };
       });

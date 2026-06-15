@@ -703,7 +703,9 @@ export struct MusicPlayerCard {
     this.playlistErrorText = '';
     try {
       const response = await this.userPlaylistApi.getUserCreatedPlaylists(userId, 50, 0);
-      this.createdPlaylists = response.data.playlist;
+      this.createdPlaylists = response.data.playlist.filter((playlist: UserPlaylistItem) => {
+        return !this.isLikedPlaylist(playlist);
+      });
     } catch (error) {
       const message = (error as Error).message;
       this.playlistErrorText = message.length > 0 ? message : '歌单加载失败';
@@ -712,8 +714,17 @@ export struct MusicPlayerCard {
     }
   }
 
+  private isLikedPlaylist(playlist: UserPlaylistItem): boolean {
+    const likedPlaylistId = AppStorage.get<number>('likedPlaylistId') ?? 0;
+    return playlist.specialType === 5 || playlist.id === likedPlaylistId;
+  }
+
   private async addCurrentSongToPlaylist(playlist: UserPlaylistItem): Promise<void> {
     if (this.userPlaylistApi === undefined || this.playlistAddingId !== 0) {
+      return;
+    }
+    if (this.isLikedPlaylist(playlist)) {
+      promptAction.showToast({ message: '请使用心型按钮添加到我喜欢的音乐' });
       return;
     }
     const songId = this.getActiveSongId();
