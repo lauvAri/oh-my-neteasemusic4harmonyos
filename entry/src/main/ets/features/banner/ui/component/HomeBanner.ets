@@ -2,15 +2,30 @@ import { Banner } from '../../domain/model/BannerModels';
 import { BannerApi } from '../../data/api/BannerApi';
 import { BannerRepositoryImpl } from '../../data/repository/BannerRepositoryImpl';
 import { GetBannersUseCase } from '../../domain/usecase/GetBannersUseCase';
-import { promptAction, router } from '@kit.ArkUI';
-import common from '@ohos.app.ability.common';
+import { promptAction } from '@kit.ArkUI';
 import { PlayerEngine } from '../../../music/service/PlayerEngine';
+
+const TARGET_TYPE_SONG: number = 1;
+const TARGET_TYPE_ALBUM: number = 10;
+const TARGET_TYPE_ARTIST: number = 100;
+const TARGET_TYPE_PLAYLIST: number = 1000;
+
+const ORPHEUS_SONG_PREFIX: string = 'orpheus://song/';
+const ORPHEUS_ALBUM_PREFIX: string = 'orpheus://album/';
+const ORPHEUS_ARTIST_PREFIX: string = 'orpheus://artist/';
+const ORPHEUS_PLAYLIST_PREFIX: string = 'orpheus://playlist/';
+
+interface WebViewRoute {
+  url: string;
+  title: string;
+}
 
 @Component
 export struct HomeBanner {
   @State private banners: Banner[] = [];
   @State private isLoading: boolean = true;
   @State private errorMessage: string = '';
+  @Consume('pathStack') pathStack: NavPathStack;
 
   private getBannersUseCase: GetBannersUseCase =
     new GetBannersUseCase(new BannerRepositoryImpl(new BannerApi()));
@@ -40,43 +55,111 @@ export struct HomeBanner {
       return;
     }
 
-    if (targetUrl.startsWith('orpheus://')) {
-      await this.handleInternalJump(targetUrl);
-    } else if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
-      try {
-        const context = getContext(this) as common.UIAbilityContext;
-        await context.startAbility({
-          action: 'ohos.want.action.viewData',
-          uri: targetUrl
-        });
-      } catch (error) {
-        console.error(`open external url failed: ${targetUrl}, ${(error as Error).message}`);
-        promptAction.showToast({ message: '外链打开失败' });
-      }
-    } else {
-      promptAction.showToast({ message: '暂不支持该类型跳转' });
+    const handled = await this.routeByTargetType(banner);
+    if (handled) {
+      console.info(`banner click: type=${banner.targetType}, id=${banner.targetId}, url=${targetUrl}`);
+      return;
     }
-    console.info(`banner click: ${targetUrl}`);
+
+    const urlHandled = await this.routeByUrlScheme(targetUrl, banner.typeTitle);
+    if (urlHandled) {
+      console.info(`banner click: scheme url=${targetUrl}`);
+      return;
+    }
+
+    if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+      this.openWebView(targetUrl, banner.typeTitle);
+      return;
+    }
+
+    promptAction.showToast({ message: '暂不支持该类型跳转' });
+    console.info(`banner click: unsupported url=${targetUrl}`);
   }
 
-  private async handleInternalJump(url: string): Promise<void> {
-    const songPrefix = 'orpheus://song/';
-    if (!url.startsWith(songPrefix)) {
-      promptAction.showToast({ message: '暂不支持该站内链接类型' });
-      return;
+  private async routeByTargetType(banner: Banner): Promise<boolean> {
+    switch (banner.targetType) {
+      case TARGET_TYPE_SONG:
+        await this.playSong(banner.targetId);
+        return true;
+      case TARGET_TYPE_ALBUM:
+        this.pushDetail('AlbumDetailPage', banner.targetId);
+        return true;
+      case TARGET_TYPE_ARTIST:
+        this.pushDetail('ArtistDetailPage', banner.targetId);
+        return true;
+      case TARGET_TYPE_PLAYLIST:
+        this.pushDetail('PlaylistDetailPage', banner.targetId);
+        return true;
+      default:
+        return false;
     }
+  }
 
-    const rawId = url.slice(songPrefix.length);
-    const songId = Number.parseInt(rawId, 10);
-    if (Number.isNaN(songId)) {
-      promptAction.showToast({ message: '歌曲 ID 无效' });
-      return;
+  private async routeByUrlScheme(url: string, typeTitle: string): Promise<boolean> {
+    if (url.startsWith(ORPHEUS_SONG_PREFIX)) {
+      const id = this.parseId(url, ORPHEUS_SONG_PREFIX);
+      if (id > 0) {
+        await this.playSong(id);
+        return true;
+      }
     }
+    if (url.startsWith(ORPHEUS_ALBUM_PREFIX)) {
+      const id = this.parseId(url, ORPHEUS_ALBUM_PREFIX);
+      if (id > 0) {
+        this.pushDetail('AlbumDetailPage', id);
+        return true;
+      }
+    }
+    if (url.startsWith(ORPHEUS_ARTIST_PREFIX)) {
+      const id = this.parseId(url, ORPHEUS_ARTIST_PREFIX);
+      if (id > 0) {
+        this.pushDetail('ArtistDetailPage', id);
+        return true;
+      }
+    }
+    if (url.startsWith(ORPHEUS_PLAYLIST_PREFIX)) {
+      const id = this.parseId(url, ORPHEUS_PLAYLIST_PREFIX);
+      if (id > 0) {
+        this.pushDetail('PlaylistDetailPage', id);
+        return true;
+      }
+    }
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      this.openWebView(url, typeTitle);
+      return true;
+    }
+    return false;
+  }
 
+  private parseId(url: string, prefix: string): number {
+    const raw = url.slice(prefix.length);
+    const value = Number.parseInt(raw, 10);
+    if (Number.isNaN(value) || value <= 0) {
+      return 0;
+    }
+    return value;
+  }
+
+  private pushDetail(name: string, id: number): void {
+    this.pathStack.pushPath({ name: name, param: id });
+    AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+  }
+
+  private openWebView(url: string, typeTitle: string): void {
+    const route: WebViewRoute = {
+      url: url,
+      title: typeTitle
+    };
+    this.pathStack.pushPath({ name: 'WebViewPage', param: route });
+    AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+  }
+
+  private async playSong(songId: number): Promise<void> {
     try {
       await this.engine.playSong(songId);
     } catch (error) {
       promptAction.showToast({ message: '歌曲播放失败' });
+      console.error(`banner play song failed: ${(error as Error).message}`);
     }
   }
 

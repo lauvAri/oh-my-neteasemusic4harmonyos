@@ -9,6 +9,7 @@ import { ArtistSublistPage } from './ArtistSublistPage';
 import { AlbumSublistPage } from './AlbumSublistPage';
 import { UserCreatedPlaylistsPage } from './UserCreatedPlaylistsPage';
 import { UserCollectedPlaylistsPage } from './UserCollectedPlaylistsPage';
+import { WebViewPage, WebViewParams } from './WebViewPage';
 import { MiniPlayerGlassBar } from '../features/music/ui/mini/MiniPlayerGlassBar';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
 import common from '@ohos.app.ability.common';
@@ -89,6 +90,16 @@ function MainTabsRouteMap(name: string, param: Object) {
   } else if (name === 'UserCollectedPlaylistsPage') {
     NavDestination() {
       UserCollectedPlaylistsPage();
+    }
+    .hideTitleBar(true)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .onHidden(trackDepth)
+  } else if (name === 'WebViewPage') {
+    NavDestination() {
+      WebViewPage({
+        url: (param as WebViewParams).url,
+        title: (param as WebViewParams).title ?? ''
+      });
     }
     .hideTitleBar(true)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
