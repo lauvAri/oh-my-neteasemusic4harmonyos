@@ -3,6 +3,7 @@ import { Song } from '../../../domain/model/Song';
 export interface PlaylistDetailCreator {
   nickname: string;
   avatarUrl: string;
+  userId: number;
 }
 
 export interface PlaylistDetail {

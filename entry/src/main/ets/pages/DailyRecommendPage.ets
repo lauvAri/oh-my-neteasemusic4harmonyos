@@ -140,7 +140,7 @@ export struct DailyRecommendPage {
               onSongClick: (song: Song, index: number): void => {
                 void this.playSong(song, index);
               },
-              onPlayNextClick: (song: Song): void => {
+              onPlayNextClick: (song: Song, _index: number): void => {
                 void this.playNextSong(song);
               }
             }

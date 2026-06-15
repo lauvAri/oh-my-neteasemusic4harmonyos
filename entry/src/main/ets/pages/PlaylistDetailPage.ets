@@ -4,6 +4,8 @@ import { PlaylistDetail, PlaylistDetailResponse } from '../features/music/playli
 import { PlaylistDetailApi } from '../features/music/playlist/data/api/PlaylistDetailApi';
 import { UserPlaylistApi } from '../features/mine/data/api/UserPlaylistApi';
 import { Song } from '../features/music/domain/model/Song';
+import { LikeApi } from '../features/music/data/api/LikeApi';
+import { SongRepositoryImpl } from '../features/music/data/repository/SongRepositoryImpl';
 import { SongList, SongListCallbacks } from '../features/music/ui/component/SongList';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
 import { getSubpageBottomPaddingVp } from '../common/ui/PageLayout';
@@ -20,10 +22,13 @@ export struct PlaylistDetailPage {
   @State private isSubscribed: boolean = false;
   @State private showDescDialog: boolean = false;
   @State private subscribePending: boolean = false;
+  @State private likedPlaylistId: number = 0;
+  @State private userId: number = 0;
   @Prop playlistId: number = 0;
 
   private api?: PlaylistDetailApi;
   private userPlaylistApi?: UserPlaylistApi;
+  private likeApi?: LikeApi;
   private engine: PlayerEngine = PlayerEngine.getInstance();
   @Consume('pathStack') pathStack: NavPathStack;
 
@@ -38,6 +43,9 @@ export struct PlaylistDetailPage {
     const context = getContext(this) as common.UIAbilityContext;
     this.api = new PlaylistDetailApi(context);
     this.userPlaylistApi = new UserPlaylistApi(context);
+    this.likeApi = new LikeApi(context);
+    this.userId = AppStorage.get<number>('userId') ?? 0;
+    this.likedPlaylistId = AppStorage.get<number>('likedPlaylistId') ?? 0;
     this.loadDetail(this.playlistId);
   }
 
@@ -114,6 +122,91 @@ export struct PlaylistDetailPage {
     } catch (error) {
       promptAction.showToast({ message: `添加失败：${(error as Error).message}` });
     }
+  }
+
+  private canDeleteSongs(): boolean {
+    if (this.playlist === null) {
+      return false;
+    }
+    return this.playlistId === this.likedPlaylistId || this.playlist.creator.userId === this.userId;
+  }
+
+  private confirmDeleteSong(song: Song): void {
+    AlertDialog.show({
+      title: '删除歌曲',
+      message: this.playlistId === this.likedPlaylistId ? '确认从我喜欢的音乐中移除这首歌？' : '确认从歌单中删除这首歌？',
+      primaryButton: {
+        value: '取消',
+        action: () => {}
+      },
+      secondaryButton: {
+        value: '删除',
+        action: () => {
+          void this.deleteSong(song);
+        }
+      }
+    });
+  }
+
+  private async deleteSong(song: Song): Promise<void> {
+    if (this.playlist === null || !this.canDeleteSongs()) {
+      return;
+    }
+    try {
+      if (this.playlistId === this.likedPlaylistId) {
+        if (this.likeApi === undefined) {
+          return;
+        }
+        await this.likeApi.unlike(song.id);
+        SongRepositoryImpl.removeLikedSongId(song.id);
+      } else {
+        if (this.userPlaylistApi === undefined) {
+          return;
+        }
+        await this.userPlaylistApi.removeTrackFromPlaylist(this.playlistId, song.id);
+      }
+      this.removeSongFromCurrentPlaylist(song.id);
+      promptAction.showToast({ message: '已删除' });
+    } catch (error) {
+      promptAction.showToast({ message: `删除失败：${(error as Error).message}` });
+    }
+  }
+
+  private removeSongFromCurrentPlaylist(songId: number): void {
+    if (this.playlist === null) {
+      return;
+    }
+    const nextTracks = this.playlist.tracks.filter((item: Song) => item.id !== songId);
+    this.playlist = {
+      id: this.playlist.id,
+      name: this.playlist.name,
+      coverImgUrl: this.playlist.coverImgUrl,
+      trackCount: Math.max(0, this.playlist.trackCount - (this.playlist.tracks.length - nextTracks.length)),
+      playCount: this.playlist.playCount,
+      subscribedCount: this.playlist.subscribedCount,
+      description: this.playlist.description,
+      subscribed: this.playlist.subscribed,
+      tags: this.playlist.tags,
+      creator: this.playlist.creator,
+      tracks: nextTracks
+    };
+  }
+
+  private buildSongListCallbacks(): SongListCallbacks {
+    const callbacks: SongListCallbacks = {
+      onSongClick: (song: Song, index: number): void => {
+        void this.playSong(song, index);
+      },
+      onPlayNextClick: (song: Song, _index: number): void => {
+        void this.playNextSong(song);
+      }
+    };
+    if (this.canDeleteSongs()) {
+      callbacks.onDeleteClick = (song: Song, _index: number): void => {
+        this.confirmDeleteSong(song);
+      };
+    }
+    return callbacks;
   }
 
   @Builder
@@ -273,14 +366,7 @@ export struct PlaylistDetailPage {
 
             SongList({
               songs: this.playlist.tracks,
-              callbacks: {
-                onSongClick: (song: Song, index: number): void => {
-                  void this.playSong(song, index);
-                },
-                onPlayNextClick: (song: Song): void => {
-                  void this.playNextSong(song);
-                }
-              }
+              callbacks: this.buildSongListCallbacks()
             })
 
             Blank().height(this.getBottomPadding())

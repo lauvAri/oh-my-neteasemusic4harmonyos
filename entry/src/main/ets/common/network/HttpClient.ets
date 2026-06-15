@@ -49,6 +49,10 @@ export class HttpClient {
     return this.request<T>(path, body, successCodes, false);
   }
 
+  async postRaw<T>(path: string, body?: object): Promise<T> {
+    return this.rawRequest<T>(path, body);
+  }
+
   private async request<T extends ApiResponse>(
     path: string,
     body?: object,
@@ -84,6 +88,40 @@ export class HttpClient {
         if (error instanceof ApiException) {
           throw error;
         }
+        throw ApiException.parse((error as Error).message);
+      }
+    } catch (error) {
+      if (error instanceof ApiException) {
+        throw error;
+      }
+      throw ApiException.network((error as Error).message);
+    } finally {
+      request.destroy();
+    }
+  }
+
+  private async rawRequest<T>(
+    path: string,
+    body?: object
+  ): Promise<T> {
+    const request = http.createHttp();
+    const url = this.buildUrl(path);
+
+    try {
+      const requestBodyText = await this.createBodyText(body, true);
+      const response = await request.request(url, {
+        method: http.RequestMethod.POST,
+        header: this.createHeaders(),
+        extraData: requestBodyText,
+        expectDataType: http.HttpDataType.STRING,
+        connectTimeout: 15000,
+        readTimeout: 15000
+      });
+
+      const responseBodyText = typeof response.result === 'string' ? response.result : JSON.stringify(response.result);
+      try {
+        return JSON.parse(responseBodyText) as T;
+      } catch (error) {
         throw ApiException.parse((error as Error).message);
       }
     } catch (error) {

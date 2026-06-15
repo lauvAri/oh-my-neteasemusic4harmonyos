@@ -9,6 +9,25 @@ import {
   CreatePlaylistResponse
 } from '../../domain/model/MineModels';
 
+interface PlaylistTracksResponse {
+  code: number;
+  message?: string;
+  msg?: string;
+}
+
+interface PlaylistTracksBody {
+  code: number;
+  message?: string;
+  msg?: string;
+  count?: number;
+  cloudCount?: number;
+}
+
+interface PlaylistTracksWrappedResponse {
+  status: number;
+  body: PlaylistTracksBody;
+}
+
 export class UserPlaylistApi {
   private httpClient: HttpClient;
 
@@ -38,5 +57,46 @@ export class UserPlaylistApi {
   async subscribe(playlistId: number, subscribe: boolean): Promise<FollowResponse> {
     const t = subscribe ? 1 : 2;
     return this.httpClient.post<FollowResponse>(`/playlist/subscribe?t=${t}&id=${playlistId}`);
+  }
+
+  async removeTrackFromPlaylist(playlistId: number, songId: number): Promise<PlaylistTracksResponse> {
+    return this.requestPlaylistTracks(
+      `/playlist/tracks?op=del&pid=${playlistId}&tracks=${songId}`
+    );
+  }
+
+  async addTrackToPlaylist(playlistId: number, songId: number): Promise<PlaylistTracksResponse> {
+    return this.requestPlaylistTracks(
+      `/playlist/tracks?op=add&pid=${playlistId}&tracks=${songId}`
+    );
+  }
+
+  private async requestPlaylistTracks(path: string): Promise<PlaylistTracksResponse> {
+    const response = await this.httpClient.postRaw<PlaylistTracksWrappedResponse>(path);
+    console.info(`[UserPlaylistApi] playlist tracks response path=${path}, response=${JSON.stringify(response)}`);
+    if (response.body === undefined || typeof response.body.code !== 'number') {
+      console.error(`[UserPlaylistApi] invalid playlist tracks response path=${path}, body=${JSON.stringify(response.body)}`);
+      throw new Error('歌单操作响应格式异常');
+    }
+    console.info(`[UserPlaylistApi] playlist tracks body code=${response.body.code}, message=${response.body.message ?? ''}, msg=${response.body.msg ?? ''}`);
+    if (response.body.code !== 200) {
+      throw new Error(this.resolvePlaylistTracksMessage(response.body));
+    }
+    const result: PlaylistTracksResponse = {
+      code: response.body.code,
+      message: response.body.message,
+      msg: response.body.msg
+    };
+    return result;
+  }
+
+  private resolvePlaylistTracksMessage(body: PlaylistTracksBody): string {
+    if (typeof body.message === 'string' && body.message.length > 0) {
+      return body.message;
+    }
+    if (typeof body.msg === 'string' && body.msg.length > 0) {
+      return body.msg;
+    }
+    return '歌单操作失败';
   }
 }

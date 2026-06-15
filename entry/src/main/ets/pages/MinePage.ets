@@ -112,6 +112,7 @@ export struct MinePage {
         if (playlistResp.playlist.length > 0) {
           this.likedPlaylistId = playlistResp.playlist[0].id;
           this.likedTrackCount = playlistResp.playlist[0].trackCount;
+          AppStorage.setOrCreate<number>('likedPlaylistId', this.likedPlaylistId);
         }
         this.playlists = playlistResp.playlist.slice(1);
       }

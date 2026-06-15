@@ -11,6 +11,9 @@ import { Song } from '../../domain/model/Song';
 import { SessionStore } from '../../../../common/storage/SessionStore';
 import { VinylCover } from '../../../../common/ui/VinylCover';
 import { AutoScrollText } from '../../../../common/ui/AutoScrollText';
+import { UserPlaylistApi } from '../../../mine/data/api/UserPlaylistApi';
+import { UserPlaylistItem } from '../../../mine/domain/model/MineModels';
+import { AuthService } from '../../../auth/service/AuthService';
 
 interface ParsedLyricLine {
   timeMs: number;
@@ -25,7 +28,7 @@ enum LyricSecondaryMode {
   ORIGINAL = 2
 }
 
-type ActiveSheet = 'queue' | 'artist';
+type ActiveSheet = 'queue' | 'artist' | 'playlist';
 
 const TEXT_PRIMARY: string = '#ffffff';
 const TEXT_SECONDARY: string = 'rgba(255, 255, 255, 0.78)';
@@ -74,10 +77,15 @@ export struct MusicPlayerCard {
   @State private secondaryMode: LyricSecondaryMode = LyricSecondaryMode.TRANSLATION;
   @State private showOnlyTranslation: boolean = true;
   @State private activeSheet: ActiveSheet | null = null;
+  @State private showActiveSheet: boolean = false;
   @StorageLink('currentSongLiked') private isLiked: boolean = false;
   @State private likePending: boolean = false;
   @State private manualLyricIndex: number = -1;
   @State private isManualLyricMode: boolean = false;
+  @State private createdPlaylists: UserPlaylistItem[] = [];
+  @State private playlistLoading: boolean = false;
+  @State private playlistErrorText: string = '';
+  @State private playlistAddingId: number = 0;
 
   private songRepository: SongRepositoryImpl = new SongRepositoryImpl(new SongApi());
   private readonly getSongDetailUseCase: GetSongDetailUseCase =
@@ -91,8 +99,12 @@ export struct MusicPlayerCard {
   private isAutoScrollingLyric: boolean = false;
   private hasUserTouchedLyric: boolean = false;
   private navDebounceTimestamp: number = 0;
+  private favoriteLongPressTimer: number = -1;
+  private favoriteLongPressed: boolean = false;
   private likeApi?: LikeApi;
   private likeListApi?: LikeListApi;
+  private userPlaylistApi?: UserPlaylistApi;
+  private authService?: AuthService;
   private sessionStore?: SessionStore;
 
   aboutToAppear(): void {
@@ -100,6 +112,8 @@ export struct MusicPlayerCard {
     this.sessionStore = new SessionStore(context);
     this.likeApi = new LikeApi(context);
     this.likeListApi = new LikeListApi(context);
+    this.userPlaylistApi = new UserPlaylistApi(context);
+    this.authService = new AuthService(context);
     this.songRepository.setLikeApi(this.likeApi);
     this.reloadCurrentSongData();
     // Preload liked song list if not yet loaded
@@ -116,6 +130,7 @@ export struct MusicPlayerCard {
   aboutToDisappear(): void {
     this.clearManualLyricResetTimer();
     this.clearAutoLyricScrollGuardTimer();
+    this.clearFavoriteLongPressTimer();
   }
 
   private formatLyricTime(timeMs: number): string {
@@ -129,6 +144,21 @@ export struct MusicPlayerCard {
     const stored = AppStorage.get<number>('selectedSongId') ?? 0;
     return stored > 0 ? stored : this.songId;
   }
+
+  private openSheet(sheet: ActiveSheet): void {
+    this.activeSheet = sheet;
+    this.showActiveSheet = true;
+  }
+
+  private closeSheet(): void {
+    this.showActiveSheet = false;
+  }
+
+  private handleSheetDisappear(): void {
+    this.showActiveSheet = false;
+    this.activeSheet = null;
+  }
+
   private reloadCurrentSongData(): void {
     this.loadSongDetail(this.songId);
     this.refreshParsedLyrics();
@@ -300,6 +330,13 @@ export struct MusicPlayerCard {
     if (this.autoLyricScrollGuardTimer !== -1) {
       clearTimeout(this.autoLyricScrollGuardTimer);
       this.autoLyricScrollGuardTimer = -1;
+    }
+  }
+
+  private clearFavoriteLongPressTimer(): void {
+    if (this.favoriteLongPressTimer !== -1) {
+      clearTimeout(this.favoriteLongPressTimer);
+      this.favoriteLongPressTimer = -1;
     }
   }
 
@@ -555,7 +592,24 @@ export struct MusicPlayerCard {
       .backgroundColor(Color.Transparent)
       .stateEffect(true)
       .enabled(!this.likePending)
+      .onTouch((event: TouchEvent) => {
+        if (event.type === TouchType.Down) {
+          this.clearFavoriteLongPressTimer();
+          this.favoriteLongPressed = false;
+          this.favoriteLongPressTimer = setTimeout(() => {
+            this.favoriteLongPressTimer = -1;
+            this.favoriteLongPressed = true;
+            void this.openAddToPlaylistSheet();
+          }, 500);
+        } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+          this.clearFavoriteLongPressTimer();
+        }
+      })
       .onClick(() => {
+        if (this.favoriteLongPressed) {
+          this.favoriteLongPressed = false;
+          return;
+        }
         this.toggleLike();
       })
   }
@@ -594,6 +648,93 @@ export struct MusicPlayerCard {
     }
   }
 
+  private async openAddToPlaylistSheet(): Promise<void> {
+    const songId = this.getActiveSongId();
+    if (songId === 0) {
+      promptAction.showToast({ message: '暂无可添加歌曲' });
+      return;
+    }
+    const userId = await this.resolveLoggedInUserId();
+    if (userId <= 0) {
+      return;
+    }
+    this.openSheet('playlist');
+    void this.loadCreatedPlaylists(userId);
+  }
+
+  private async resolveLoggedInUserId(): Promise<number> {
+    const cookie = await this.sessionStore?.getCookie() ?? '';
+    if (cookie.trim().length === 0) {
+      promptAction.showToast({ message: '请先登录' });
+      return 0;
+    }
+
+    const storedUserId = AppStorage.get<number>('userId') ?? 0;
+    if (storedUserId > 0) {
+      return storedUserId;
+    }
+
+    if (this.authService === undefined) {
+      promptAction.showToast({ message: '登录状态读取失败' });
+      return 0;
+    }
+
+    try {
+      const response = await this.authService.getAccountInfo();
+      const userId = response.profile.userId;
+      if (userId > 0) {
+        AppStorage.setOrCreate<number>('userId', userId);
+        return userId;
+      }
+      promptAction.showToast({ message: '登录状态读取失败' });
+      return 0;
+    } catch (error) {
+      const message = (error as Error).message;
+      promptAction.showToast({ message: message.length > 0 ? message : '登录状态失效，请重新登录' });
+      return 0;
+    }
+  }
+
+  private async loadCreatedPlaylists(userId: number): Promise<void> {
+    if (this.userPlaylistApi === undefined) {
+      return;
+    }
+    this.playlistLoading = true;
+    this.playlistErrorText = '';
+    try {
+      const response = await this.userPlaylistApi.getUserCreatedPlaylists(userId, 50, 0);
+      this.createdPlaylists = response.data.playlist;
+    } catch (error) {
+      const message = (error as Error).message;
+      this.playlistErrorText = message.length > 0 ? message : '歌单加载失败';
+    } finally {
+      this.playlistLoading = false;
+    }
+  }
+
+  private async addCurrentSongToPlaylist(playlist: UserPlaylistItem): Promise<void> {
+    if (this.userPlaylistApi === undefined || this.playlistAddingId !== 0) {
+      return;
+    }
+    const songId = this.getActiveSongId();
+    if (songId === 0) {
+      promptAction.showToast({ message: '暂无可添加歌曲' });
+      return;
+    }
+    const playlistName = playlist.name;
+    this.playlistAddingId = playlist.id;
+    this.closeSheet();
+    try {
+      await this.userPlaylistApi.addTrackToPlaylist(playlist.id, songId);
+      promptAction.showToast({ message: `已添加到 ${playlistName}` });
+    } catch (error) {
+      const message = (error as Error).message;
+      promptAction.showToast({ message: message.length > 0 ? message : '添加到歌单失败' });
+    } finally {
+      this.playlistAddingId = 0;
+    }
+  }
+
   @Builder
   private QueueButton() {
     Button() {
@@ -608,7 +749,7 @@ export struct MusicPlayerCard {
       .backgroundColor(Color.Transparent)
       .stateEffect(true)
       .onClick(() => {
-        this.activeSheet = 'queue';
+        this.openSheet('queue');
       })
   }
 
@@ -618,6 +759,8 @@ export struct MusicPlayerCard {
       this.QueueSheet();
     } else if (this.activeSheet === 'artist') {
       this.ArtistPickerSheet();
+    } else if (this.activeSheet === 'playlist') {
+      this.PlaylistPickerSheet();
     }
   }
 
@@ -711,7 +854,7 @@ export struct MusicPlayerCard {
     .width('100%')
     .padding({ top: 8, bottom: 8, left: 4, right: 4 })
     .onClick(() => {
-      this.activeSheet = null;
+      this.closeSheet();
       this.engine.playSong(song.id).catch((error: Error) => {
         console.error(`queue switch failed: ${error.message}`);
       });
@@ -781,8 +924,137 @@ export struct MusicPlayerCard {
     .height(56)
     .padding({ left: 8, right: 8 })
     .onClick(() => {
-      this.activeSheet = null;
+      this.closeSheet();
       this.navigateToArtist(artist.id);
+    })
+  }
+
+  @Builder
+  private PlaylistPickerSheet() {
+    Column() {
+      Text('添加到歌单')
+        .fontSize(17)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(TEXT_PRIMARY)
+        .width('100%')
+        .textAlign(TextAlign.Center)
+        .padding({ top: 4, bottom: 12 })
+
+      Divider()
+        .color('rgba(255, 255, 255, 0.10)')
+        .width('100%')
+
+      if (this.playlistLoading) {
+        Column({ space: 10 }) {
+          LoadingProgress()
+            .width(32)
+            .height(32)
+            .color(TEXT_PRIMARY)
+          Text('歌单加载中...')
+            .fontSize(14)
+            .fontColor(TEXT_TERTIARY)
+        }
+        .layoutWeight(1)
+        .width('100%')
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+      } else if (this.playlistErrorText.length > 0) {
+        Column({ space: 12 }) {
+          Text(this.playlistErrorText)
+            .fontSize(14)
+            .fontColor(ERROR_COLOR)
+            .textAlign(TextAlign.Center)
+          Button('重试')
+            .height(36)
+            .padding({ left: 18, right: 18 })
+            .fontSize(13)
+            .fontColor(TEXT_PRIMARY)
+            .backgroundColor(CONTROL_GRAY)
+            .onClick(() => {
+              const userId = AppStorage.get<number>('userId') ?? 0;
+              if (userId > 0) {
+                void this.loadCreatedPlaylists(userId);
+              }
+            })
+        }
+        .layoutWeight(1)
+        .width('100%')
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+      } else if (this.createdPlaylists.length === 0) {
+        Column() {
+          Text('暂无创建的歌单')
+            .fontSize(14)
+            .fontColor(TEXT_TERTIARY)
+        }
+        .layoutWeight(1)
+        .width('100%')
+        .justifyContent(FlexAlign.Center)
+      } else {
+        List() {
+          ForEach(this.createdPlaylists, (playlist: UserPlaylistItem) => {
+            ListItem() {
+              this.PlaylistPickerRow(playlist)
+            }
+          }, (playlist: UserPlaylistItem) => `${playlist.id}`)
+        }
+        .width('100%')
+        .layoutWeight(1)
+        .listDirection(Axis.Vertical)
+        .scrollBar(BarState.Auto)
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ top: 12, bottom: 16 })
+  }
+
+  @Builder
+  private PlaylistPickerRow(playlist: UserPlaylistItem) {
+    Row({ space: 12 }) {
+      Image(playlist.coverImgUrl)
+        .width(46)
+        .height(46)
+        .borderRadius(8)
+        .objectFit(ImageFit.Cover)
+
+      Column({ space: 4 }) {
+        Text(playlist.name)
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(TEXT_PRIMARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .width('100%')
+
+        Text(`${playlist.trackCount} 首`)
+          .fontSize(12)
+          .fontColor(TEXT_TERTIARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .width('100%')
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+
+      if (this.playlistAddingId === playlist.id) {
+        LoadingProgress()
+          .width(20)
+          .height(20)
+          .color(TEXT_PRIMARY)
+      } else {
+        Image($r('app.media.ic_playlist_add'))
+          .width(20)
+          .height(20)
+          .fillColor(TEXT_TERTIARY)
+      }
+    }
+    .width('100%')
+    .height(62)
+    .padding({ left: 8, right: 8 })
+    .enabled(this.playlistAddingId === 0)
+    .onClick(() => {
+      void this.addCurrentSongToPlaylist(playlist);
     })
   }
 
@@ -909,13 +1181,13 @@ export struct MusicPlayerCard {
     .width('100%')
     .height('100%')
     .alignItems(HorizontalAlign.Center)
-    .bindSheet(this.activeSheet !== null, this.SheetRouter(), {
+    .bindSheet(this.showActiveSheet, this.SheetRouter(), {
       height: '60%',
       showClose: false,
       dragBar: true,
       backgroundColor: '#1f2937',
       onDisappear: () => {
-        this.activeSheet = null;
+        this.handleSheetDisappear();
       }
     })
   }
@@ -1116,7 +1388,7 @@ export struct MusicPlayerCard {
             if (this.songDetail.ar.length === 1) {
               this.navigateToArtist(this.songDetail.ar[0].id);
             } else {
-              this.activeSheet = 'artist';
+              this.openSheet('artist');
             }
           })
 

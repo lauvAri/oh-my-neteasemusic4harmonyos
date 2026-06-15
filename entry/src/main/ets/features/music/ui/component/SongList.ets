@@ -4,6 +4,7 @@ import { SongArtist } from '../../domain/model/SongModels';
 export interface SongListCallbacks {
   onSongClick: (song: Song, index: number) => void;
   onPlayNextClick?: (song: Song, index: number) => void;
+  onDeleteClick?: (song: Song, index: number) => void;
 }
 
 export class SongListDataSource implements IDataSource {
@@ -44,6 +45,9 @@ export struct SongList {
   @Prop @Watch('onSongsChanged') songs: Song[] = [];
   @Prop callbacks: SongListCallbacks;
   @StorageLink('selectedSongId') private selectedSongId: number = 0;
+  @State private showActionSheet: boolean = false;
+  @State private actionSong: Song | null = null;
+  @State private actionIndex: number = -1;
 
   private dataSource: SongListDataSource = new SongListDataSource();
 
@@ -68,6 +72,92 @@ export struct SongList {
     const seconds = totalSeconds % 60;
     const secondText = seconds < 10 ? `0${seconds}` : `${seconds}`;
     return `${minutes}:${secondText}`;
+  }
+
+  private openActionSheet(song: Song, index: number): void {
+    this.actionSong = song;
+    this.actionIndex = index;
+    this.showActionSheet = true;
+  }
+
+  private closeActionSheet(): void {
+    this.showActionSheet = false;
+  }
+
+  private triggerPlayNext(): void {
+    if (this.actionSong === null || this.actionIndex < 0) {
+      return;
+    }
+    if (this.callbacks.onPlayNextClick !== undefined) {
+      this.callbacks.onPlayNextClick(this.actionSong, this.actionIndex);
+    }
+    this.closeActionSheet();
+  }
+
+  private triggerDelete(): void {
+    if (this.actionSong === null || this.actionIndex < 0) {
+      return;
+    }
+    if (this.callbacks.onDeleteClick !== undefined) {
+      this.callbacks.onDeleteClick(this.actionSong, this.actionIndex);
+    }
+    this.closeActionSheet();
+  }
+
+  @Builder
+  private actionSheet() {
+    Column({ space: 10 }) {
+      Button() {
+        Row({ space: 10 }) {
+          Image($r('app.media.ic_playlist_add'))
+            .width(18)
+            .height(18)
+            .fillColor($r('app.color.text_primary'))
+          Text('添加到下一首播放')
+            .fontSize(15)
+            .fontColor($r('app.color.text_primary'))
+        }
+      }
+        .width('100%')
+        .height(46)
+        .backgroundColor($r('app.color.surface_info'))
+        .onClick(() => {
+          this.triggerPlayNext();
+        })
+
+      if (this.callbacks.onDeleteClick !== undefined) {
+        Button() {
+          Row({ space: 10 }) {
+            Image($r('app.media.ic_delete'))
+              .width(18)
+              .height(18)
+              .fillColor($r('app.color.text_danger'))
+            Text('删除')
+              .fontSize(15)
+              .fontColor($r('app.color.text_danger'))
+          }
+        }
+          .width('100%')
+          .height(46)
+          .backgroundColor($r('app.color.surface_info'))
+          .onClick(() => {
+            this.triggerDelete();
+          })
+      }
+
+      Button('取消')
+        .width('100%')
+        .height(44)
+        .fontSize(14)
+        .fontColor($r('app.color.text_secondary'))
+        .backgroundColor($r('app.color.surface_subtle'))
+        .onClick(() => {
+          this.closeActionSheet();
+        })
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 10, bottom: 24 })
+    .backgroundColor(Color.White)
   }
 
   @Builder
@@ -116,7 +206,7 @@ export struct SongList {
           .textAlign(TextAlign.End)
 
         Button() {
-          Image($r('app.media.ic_playlist_add'))
+          Image($r('app.media.ic_more_vert'))
             .width(20)
             .height(20)
             .fillColor($r('app.color.text_tertiary'))
@@ -126,9 +216,7 @@ export struct SongList {
           .height(40)
           .backgroundColor(Color.Transparent)
           .onClick(() => {
-            if (this.callbacks.onPlayNextClick !== undefined) {
-              this.callbacks.onPlayNextClick(song, index);
-            }
+            this.openActionSheet(song, index);
           })
       }
       .width('100%')
@@ -144,14 +232,26 @@ export struct SongList {
   }
 
   build() {
-    List() {
-      LazyForEach(this.dataSource, (item: Song, index: number) => {
-        ListItem() {
-          this.songRow(item, index);
-        }
-      }, (item: Song) => `${item.id}`)
+    Column() {
+      List() {
+        LazyForEach(this.dataSource, (item: Song, index: number) => {
+          ListItem() {
+            this.songRow(item, index);
+          }
+        }, (item: Song) => `${item.id}`)
+      }
+      .width('100%')
+      .layoutWeight(1)
     }
     .width('100%')
     .layoutWeight(1)
+    .bindSheet(this.showActionSheet, this.actionSheet(), {
+      height: 220,
+      showClose: false,
+      dragBar: true,
+      onDisappear: () => {
+        this.showActionSheet = false;
+      }
+    })
   }
 }

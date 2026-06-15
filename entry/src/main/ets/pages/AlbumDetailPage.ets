@@ -245,7 +245,7 @@ export struct AlbumDetailPage {
                   onSongClick: (song: Song, index: number) => {
                     this.playSong(song, index);
                   },
-                  onPlayNextClick: (song: Song) => {
+                  onPlayNextClick: (song: Song, _index: number) => {
                     this.playNextSong(song);
                   }
                 } as SongListCallbacks
