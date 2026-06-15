@@ -6,7 +6,11 @@ import {
   UserPlaylistResponse,
   UserPlaylistSublistResponse,
   FollowResponse,
-  CreatePlaylistResponse
+  CreatePlaylistResponse,
+  PlaylistTagResponse,
+  DeletePlaylistResponse,
+  UpdatePlaylistResponse,
+  UpdatePlaylistParams
 } from '../../domain/model/MineModels';
 
 interface PlaylistTracksResponse {
@@ -36,38 +40,61 @@ export class UserPlaylistApi {
   }
 
   async getUserPlaylist(uid: number, limit: number = 30, offset: number = 0): Promise<UserPlaylistResponse> {
-    return this.httpClient.post<UserPlaylistResponse>(`/user/playlist?uid=${uid}&limit=${limit}&offset=${offset}`);
+    return this.httpClient.post<UserPlaylistResponse>(
+      `/user/playlist?uid=${uid}&limit=${limit}&offset=${offset}&timestamp=${Date.now()}`
+    );
   }
 
   async getUserCreatedPlaylists(uid: number, limit: number = 30, offset: number = 0): Promise<UserPlaylistSublistResponse> {
-    return this.httpClient.post<UserPlaylistSublistResponse>(`/user/playlist/create?uid=${uid}&limit=${limit}&offset=${offset}`);
+    return this.httpClient.post<UserPlaylistSublistResponse>(
+      `/user/playlist/create?uid=${uid}&limit=${limit}&offset=${offset}&timestamp=${Date.now()}`
+    );
   }
 
   async getUserCollectedPlaylists(uid: number, limit: number = 30, offset: number = 0): Promise<UserPlaylistSublistResponse> {
-    return this.httpClient.post<UserPlaylistSublistResponse>(`/user/playlist/collect?uid=${uid}&limit=${limit}&offset=${offset}`);
+    return this.httpClient.post<UserPlaylistSublistResponse>(
+      `/user/playlist/collect?uid=${uid}&limit=${limit}&offset=${offset}&timestamp=${Date.now()}`
+    );
   }
 
   async createPlaylist(name: string, isPrivate: boolean): Promise<CreatePlaylistResponse> {
     const privacyQuery = isPrivate ? '&privacy=10' : '';
     return this.httpClient.post<CreatePlaylistResponse>(
-      `/playlist/create?name=${encodeURIComponent(name)}${privacyQuery}`
+      `/playlist/create?name=${encodeURIComponent(name)}${privacyQuery}&timestamp=${Date.now()}`
     );
+  }
+
+  async getPlaylistTags(): Promise<PlaylistTagResponse> {
+    return this.httpClient.post<PlaylistTagResponse>(`/playlist/highquality/tags?timestamp=${Date.now()}`);
+  }
+
+  async deletePlaylist(playlistId: number): Promise<DeletePlaylistResponse> {
+    return this.httpClient.post<DeletePlaylistResponse>(`/playlist/delete?id=${playlistId}&timestamp=${Date.now()}`);
+  }
+
+  async updatePlaylist(params: UpdatePlaylistParams): Promise<UpdatePlaylistResponse> {
+    const path = `/playlist/update?id=${params.id}` +
+      `&name=${encodeURIComponent(params.name)}` +
+      `&desc=${encodeURIComponent(params.desc)}` +
+      `&tags=${encodeURIComponent(params.tags.join(';'))}` +
+      `&timestamp=${Date.now()}`;
+    return this.httpClient.post<UpdatePlaylistResponse>(path);
   }
 
   async subscribe(playlistId: number, subscribe: boolean): Promise<FollowResponse> {
     const t = subscribe ? 1 : 2;
-    return this.httpClient.post<FollowResponse>(`/playlist/subscribe?t=${t}&id=${playlistId}`);
+    return this.httpClient.post<FollowResponse>(`/playlist/subscribe?t=${t}&id=${playlistId}&timestamp=${Date.now()}`);
   }
 
   async removeTrackFromPlaylist(playlistId: number, songId: number): Promise<PlaylistTracksResponse> {
     return this.requestPlaylistTracks(
-      `/playlist/tracks?op=del&pid=${playlistId}&tracks=${songId}`
+      `/playlist/tracks?op=del&pid=${playlistId}&tracks=${songId}&timestamp=${Date.now()}`
     );
   }
 
   async addTrackToPlaylist(playlistId: number, songId: number): Promise<PlaylistTracksResponse> {
     return this.requestPlaylistTracks(
-      `/playlist/tracks?op=add&pid=${playlistId}&tracks=${songId}`
+      `/playlist/tracks?op=add&pid=${playlistId}&tracks=${songId}&timestamp=${Date.now()}`
     );
   }
 

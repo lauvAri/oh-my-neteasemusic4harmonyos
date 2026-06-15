@@ -12,6 +12,6 @@ export class PlaylistDetailApi {
   }
 
   async getPlaylistDetail(playlistId: number): Promise<PlaylistDetailResponse> {
-    return this.httpClient.post<PlaylistDetailResponse>(`/playlist/detail?id=${playlistId}`);
+    return this.httpClient.post<PlaylistDetailResponse>(`/playlist/detail?id=${playlistId}&timestamp=${Date.now()}`);
   }
 }

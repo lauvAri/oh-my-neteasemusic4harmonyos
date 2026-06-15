@@ -12,6 +12,38 @@ export interface UserPlaylistItem {
   creator: UserPlaylistCreator;
 }
 
+export interface PlaylistTagItem {
+  id: number;
+  name: string;
+  type: number;
+  category: number;
+  hot: boolean;
+}
+
+export interface PlaylistTagResponse {
+  code: number;
+  tags: PlaylistTagItem[];
+}
+
+export interface DeletePlaylistResponse {
+  code: number;
+  msg?: string;
+  message?: string;
+}
+
+export interface UpdatePlaylistResponse {
+  code: number;
+  msg?: string;
+  message?: string;
+}
+
+export interface UpdatePlaylistParams {
+  id: number;
+  name: string;
+  desc: string;
+  tags: string[];
+}
+
 export interface UserPlaylistResponse {
   code: number;
   playlist: UserPlaylistItem[];
