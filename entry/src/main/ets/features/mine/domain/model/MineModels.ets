@@ -29,6 +29,7 @@ export interface SubscribedAlbumItem {
   picUrl: string;
   artist?: SubscribedAlbumArtist;
   size: number;
+  alias?: string[];
 }
 
 export interface AlbumSublistResponse {
@@ -42,10 +43,17 @@ export interface SubscribedArtistItem {
   name: string;
   picUrl: string;
   albumSize: number;
+  alias?: string[];
+  mvSize?: number;
 }
 
 export interface ArtistSublistResponse {
   code: number;
   data: SubscribedArtistItem[];
   hasMore: boolean;
+}
+
+export interface FollowResponse {
+  code: number;
+  message?: string;
 }

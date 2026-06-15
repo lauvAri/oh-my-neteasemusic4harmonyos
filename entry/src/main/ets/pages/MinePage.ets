@@ -111,9 +111,11 @@ export struct MinePage {
       }
       if (results[1].status === 'fulfilled') {
         this.subscribedAlbums = results[1].value.data;
+        AlbumSublistApi.setSubscribedIds(this.subscribedAlbums.map((item: SubscribedAlbumItem) => item.id));
       }
       if (results[2].status === 'fulfilled') {
         this.subscribedArtists = results[2].value.data;
+        ArtistSublistApi.setSubscribedIds(this.subscribedArtists.map((item: SubscribedArtistItem) => item.id));
       }
     } catch (error) {
       console.error(`加载我的内容失败: ${(error as Error).message}`);
@@ -146,13 +148,29 @@ export struct MinePage {
   }
 
   @Builder
-  private sectionHeader(title: string) {
-    Text(title)
-      .fontSize(17)
-      .fontWeight(FontWeight.Medium)
-      .fontColor($r('app.color.text_primary'))
-      .width('100%')
-      .margin({ top: 4 })
+  private sectionHeader(title: string, onTap?: () => void) {
+    Row({ space: 6 }) {
+      Text(title)
+        .fontSize(17)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.text_primary'))
+        .layoutWeight(1)
+        .margin({ top: 4 })
+      if (onTap !== undefined) {
+        Image($r('app.media.ic_arrow_back'))
+          .width(14)
+          .height(14)
+          .fillColor($r('app.color.text_tertiary'))
+          .rotate({ angle: 180 })
+          .margin({ top: 4 })
+      }
+    }
+    .width('100%')
+    .onClick(() => {
+      if (onTap !== undefined) {
+        onTap();
+      }
+    })
   }
 
   @Builder
@@ -393,27 +411,27 @@ export struct MinePage {
                 this.likedMusicCard();
               }
 
-              if (this.playlists.length > 0) {
-                Column({ space: 10 }) {
-                  this.sectionHeader(`我的歌单 (${this.playlists.length})`);
-                  this.playlistGrid();
-                }
-              }
-
               if (this.subscribedAlbums.length > 0) {
                 Column({ space: 10 }) {
-                  this.sectionHeader(`收藏的专辑 (${this.subscribedAlbums.length})`);
+                this.sectionHeader(`收藏的专辑 (${this.subscribedAlbums.length})`, (): void => {
+                  this.pathStack.pushPath({ name: 'AlbumSublistPage' });
+                  AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+                });
                   this.albumGrid();
                 }
               }
 
               if (this.subscribedArtists.length > 0) {
                 Column({ space: 10 }) {
-                  this.sectionHeader(`关注的歌手 (${this.subscribedArtists.length})`);
+                  this.sectionHeader(`收藏的歌手 (${this.subscribedArtists.length})`, (): void => {
+                    this.pathStack.pushPath({ name: 'ArtistSublistPage' });
+                    AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+                  });
                   this.artistGrid();
                 }
               }
             }
+
 
             Row({ space: 10 }) {
               Button('刷新信息')

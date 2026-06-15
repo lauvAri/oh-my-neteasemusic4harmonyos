@@ -1,10 +1,11 @@
 import common from '@ohos.app.ability.common';
-import { router } from '@kit.ArkUI';
+import { promptAction, router } from '@kit.ArkUI';
 import { AlbumApi } from '../features/music/album/data/api/AlbumApi';
 import { AlbumInfo } from '../features/music/album/domain/model/AlbumModels';
 import { Song } from '../features/music/domain/model/Song';
 import { SongList, SongListCallbacks } from '../features/music/ui/component/SongList';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
+import { AlbumSublistApi } from '../features/mine/data/api/AlbumSublistApi';
 import { SUBPAGE_BOTTOM_PADDING_VP } from '../common/ui/PageLayout';
 
 @Component
@@ -17,14 +18,41 @@ export struct AlbumDetailPage {
   @State album: AlbumInfo | null = null;
   @State songs: Song[] = [];
   @State showDescDialog: boolean = false;
+  @State isSubscribed: boolean = false;
+  @State subscribePending: boolean = false;
 
   private albumApi?: AlbumApi;
+  private albumSublistApi?: AlbumSublistApi;
   private engine: PlayerEngine = PlayerEngine.getInstance();
 
   aboutToAppear(): void {
     const context = getContext(this) as common.UIAbilityContext;
     this.albumApi = new AlbumApi(context);
+    this.albumSublistApi = new AlbumSublistApi(context);
+    this.isSubscribed = AlbumSublistApi.isSubscribed(this.albumId);
     this.loadAlbumDetail();
+  }
+
+  private async toggleSubscribe(): Promise<void> {
+    if (this.albumSublistApi === undefined || this.subscribePending) {
+      return;
+    }
+    this.subscribePending = true;
+    const nextSubscribed = !this.isSubscribed;
+    try {
+      await this.albumSublistApi.subscribe(this.albumId, nextSubscribed);
+      this.isSubscribed = nextSubscribed;
+      if (nextSubscribed) {
+        AlbumSublistApi.addSubscribedId(this.albumId);
+      } else {
+        AlbumSublistApi.removeSubscribedId(this.albumId);
+      }
+      promptAction.showToast({ message: nextSubscribed ? '已收藏' : '已取消收藏' });
+    } catch (error) {
+      promptAction.showToast({ message: `${nextSubscribed ? '收藏' : '取消收藏'}失败：${(error as Error).message}` });
+    } finally {
+      this.subscribePending = false;
+    }
   }
 
   private async loadAlbumDetail(): Promise<void> {
@@ -45,10 +73,24 @@ export struct AlbumDetailPage {
       this.loading = false;
     }
   }
-
   private async playSong(song: Song, index: number): Promise<void> {
     this.engine.setQueue(this.songs, index);
     router.pushUrl({ url: 'pages/MusicPlayerPage', params: { songId: song.id } });
+  }
+
+  @Builder
+  private subscribeButton() {
+    Button(this.isSubscribed ? '已收藏' : '收藏')
+      .fontSize(13)
+      .fontColor(this.isSubscribed ? $r('app.color.text_secondary') : $r('app.color.text_brand'))
+      .backgroundColor(this.isSubscribed ? $r('app.color.surface_input') : $r('app.color.surface_brand_tint'))
+      .height(32)
+      .padding({ left: 16, right: 16 })
+      .borderRadius(16)
+      .enabled(!this.subscribePending)
+      .onClick(() => {
+        void this.toggleSubscribe();
+      })
   }
 
   build() {
@@ -133,6 +175,8 @@ export struct AlbumDetailPage {
               }
               .layoutWeight(1)
               .alignItems(HorizontalAlign.Start)
+
+              this.subscribeButton();
             }
             .width('100%')
 

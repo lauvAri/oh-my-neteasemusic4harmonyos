@@ -1,10 +1,11 @@
 import common from '@ohos.app.ability.common';
-import { router } from '@kit.ArkUI';
+import { promptAction, router } from '@kit.ArkUI';
 import { ArtistApi } from '../features/music/artist/data/api/ArtistApi';
 import { ArtistInfo, ArtistAlbumItem } from '../features/music/artist/domain/model/ArtistModels';
 import { Song } from '../features/music/domain/model/Song';
 import { SongList, SongListCallbacks } from '../features/music/ui/component/SongList';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
+import { ArtistSublistApi } from '../features/mine/data/api/ArtistSublistApi';
 import { SUBPAGE_BOTTOM_PADDING_VP } from '../common/ui/PageLayout';
 
 @Component
@@ -20,14 +21,19 @@ export struct ArtistDetailPage {
   @State songsError: string = '';
   @State albumsError: string = '';
   @State currentTab: number = 1;
+  @State isFollowed: boolean = false;
+  @State followPending: boolean = false;
 
   private artistApi?: ArtistApi;
+  private artistSublistApi?: ArtistSublistApi;
   private engine: PlayerEngine = PlayerEngine.getInstance();
   private tabsController: TabsController = new TabsController();
 
   aboutToAppear(): void {
     const context = getContext(this) as common.UIAbilityContext;
     this.artistApi = new ArtistApi(context);
+    this.artistSublistApi = new ArtistSublistApi(context);
+    this.isFollowed = ArtistSublistApi.isSubscribed(this.artistId);
     this.loadArtistDetail();
   }
 
@@ -67,6 +73,28 @@ export struct ArtistDetailPage {
     }
   }
 
+  private async toggleFollow(): Promise<void> {
+    if (this.artistSublistApi === undefined || this.followPending) {
+      return;
+    }
+    this.followPending = true;
+    const nextFollowed = !this.isFollowed;
+    try {
+      await this.artistSublistApi.follow(this.artistId, nextFollowed);
+      this.isFollowed = nextFollowed;
+      if (nextFollowed) {
+        ArtistSublistApi.addSubscribedId(this.artistId);
+      } else {
+        ArtistSublistApi.removeSubscribedId(this.artistId);
+      }
+      promptAction.showToast({ message: nextFollowed ? '已关注' : '已取消关注' });
+    } catch (error) {
+      promptAction.showToast({ message: `${nextFollowed ? '关注' : '取消关注'}失败：${(error as Error).message}` });
+    } finally {
+      this.followPending = false;
+    }
+  }
+
   private getArtistImageUrl(): string {
     if (this.artist === null) {
       return '';
@@ -101,6 +129,21 @@ export struct ArtistDetailPage {
     }
     const date = new Date(timestamp);
     return `${date.getFullYear()}`;
+  }
+
+  @Builder
+  private followButton() {
+    Button(this.isFollowed ? '已关注' : '关注')
+      .fontSize(13)
+      .fontColor(this.isFollowed ? $r('app.color.text_secondary') : $r('app.color.text_brand'))
+      .backgroundColor(this.isFollowed ? $r('app.color.surface_input') : $r('app.color.surface_brand_tint'))
+      .height(32)
+      .padding({ left: 16, right: 16 })
+      .borderRadius(16)
+      .enabled(!this.followPending)
+      .onClick(() => {
+        void this.toggleFollow();
+      })
   }
 
   @Builder
@@ -191,6 +234,8 @@ export struct ArtistDetailPage {
             }
             .layoutWeight(1)
             .alignItems(HorizontalAlign.Start)
+
+            this.followButton();
           }
           .width('100%')
           .padding({ left: 16, right: 16, top: 4, bottom: 4 })
@@ -304,7 +349,7 @@ export struct ArtistDetailPage {
                     }, (item: ArtistAlbumItem) => `${item.id}`)
                   }
                   .width('100%')
-                  .padding({ left: 16, right: 16, top: 8, bottom: SUBPAGE_BOTTOM_PADDING_VP })
+                  .padding({ left: 16, right: 16, top: 12, bottom: SUBPAGE_BOTTOM_PADDING_VP })
                 }
                 .width('100%')
                 .layoutWeight(1)
@@ -313,11 +358,10 @@ export struct ArtistDetailPage {
           }
           .barHeight(0)
           .layoutWeight(1)
-          .onChange((index: number) => {
-            this.currentTab = index;
-          })
+          .width('100%')
         }
         .layoutWeight(1)
+        .width('100%')
       } else {
         Column({ space: 12 }) {
           Text(this.errorText)

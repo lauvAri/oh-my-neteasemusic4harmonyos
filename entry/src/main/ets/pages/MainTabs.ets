@@ -5,6 +5,8 @@ import { DailyRecommendPage } from './DailyRecommendPage';
 import { PlaylistDetailPage } from './PlaylistDetailPage';
 import { ArtistDetailPage } from './ArtistDetailPage';
 import { AlbumDetailPage } from './AlbumDetailPage';
+import { ArtistSublistPage } from './ArtistSublistPage';
+import { AlbumSublistPage } from './AlbumSublistPage';
 import { MiniPlayerBar } from '../features/music/ui/mini/MiniPlayerBar';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
 import common from '@ohos.app.ability.common';
@@ -53,6 +55,18 @@ function MainTabsRouteMap(name: string, param: Object) {
   } else if (name === 'AlbumDetailPage') {
     NavDestination() {
       AlbumDetailPage({ albumId: param as number });
+    }
+    .hideTitleBar(true)
+    .onHidden(trackDepth)
+  } else if (name === 'ArtistSublistPage') {
+    NavDestination() {
+      ArtistSublistPage();
+    }
+    .hideTitleBar(true)
+    .onHidden(trackDepth)
+  } else if (name === 'AlbumSublistPage') {
+    NavDestination() {
+      AlbumSublistPage();
     }
     .hideTitleBar(true)
     .onHidden(trackDepth)
