@@ -18,6 +18,17 @@ export interface UserPlaylistResponse {
   more: boolean;
 }
 
+export interface UserPlaylistSublist {
+  playlist: UserPlaylistItem[];
+  more: boolean;
+  count: number;
+}
+
+export interface UserPlaylistSublistResponse {
+  code: number;
+  data: UserPlaylistSublist;
+}
+
 export interface SubscribedAlbumArtist {
   id: number;
   name: string;

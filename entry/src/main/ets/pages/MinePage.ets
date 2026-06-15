@@ -31,6 +31,8 @@ export struct MinePage {
   @State playlists: UserPlaylistItem[] = [];
   @State subscribedAlbums: SubscribedAlbumItem[] = [];
   @State subscribedArtists: SubscribedArtistItem[] = [];
+  @State createdPlaylistCount: number = 0;
+  @State collectedPlaylistCount: number = 0;
   @State contentLoading: boolean = false;
 
   private authService?: AuthService;
@@ -122,6 +124,20 @@ export struct MinePage {
     } finally {
       this.contentLoading = false;
     }
+
+    const userId = this.userId;
+    try {
+      const createdResp = await (this.userPlaylistApi?.getUserCreatedPlaylists(userId) ?? Promise.reject(new Error('未初始化')));
+      this.createdPlaylistCount = createdResp.data.count;
+    } catch (err) {
+      console.error(`加载创建歌单数量失败: ${(err as Error).message}`);
+    }
+    try {
+      const collectedResp = await (this.userPlaylistApi?.getUserCollectedPlaylists(userId) ?? Promise.reject(new Error('未初始化')));
+      this.collectedPlaylistCount = collectedResp.data.count;
+    } catch (err) {
+      console.error(`加载收藏歌单数量失败: ${(err as Error).message}`);
+    }
   }
 
   private async logout(): Promise<void> {
@@ -197,7 +213,6 @@ export struct MinePage {
           .fontColor($r('app.color.text_secondary'))
       }
       .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
 
       Image($r('app.media.ic_arrow_back'))
         .width(16)
@@ -214,6 +229,31 @@ export struct MinePage {
         this.pathStack.pushPath({ name: 'PlaylistDetailPage', param: this.likedPlaylistId });
         AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
       }
+    })
+  }
+
+  @Builder
+  private playlistCategoryEntry(label: string, count: number, onTap: () => void) {
+    Row({ space: 12 }) {
+      Text(label)
+        .fontSize(15)
+        .fontColor($r('app.color.text_primary'))
+        .layoutWeight(1)
+      Text(`${count}`)
+        .fontSize(13)
+        .fontColor($r('app.color.text_secondary'))
+      Image($r('app.media.ic_arrow_back'))
+        .width(16)
+        .height(16)
+        .fillColor($r('app.color.text_tertiary'))
+        .rotate({ angle: 180 })
+    }
+    .width('100%')
+    .padding(12)
+    .backgroundColor($r('app.color.surface_info'))
+    .borderRadius(10)
+    .onClick(() => {
+      onTap();
     })
   }
 
@@ -409,6 +449,31 @@ export struct MinePage {
             } else {
               if (this.likedPlaylistId > 0) {
                 this.likedMusicCard();
+              }
+
+              if (this.createdPlaylistCount > 0 || this.collectedPlaylistCount > 0) {
+                Column({ space: 8 }) {
+                  if (this.createdPlaylistCount > 0) {
+                    this.playlistCategoryEntry(
+                      '创建的歌单',
+                      this.createdPlaylistCount,
+                      (): void => {
+                        this.pathStack.pushPath({ name: 'UserCreatedPlaylistsPage' });
+                        AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+                      }
+                    );
+                  }
+                  if (this.collectedPlaylistCount > 0) {
+                    this.playlistCategoryEntry(
+                      '收藏的歌单',
+                      this.collectedPlaylistCount,
+                      (): void => {
+                        this.pathStack.pushPath({ name: 'UserCollectedPlaylistsPage' });
+                        AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+                      }
+                    );
+                  }
+                }
               }
 
               if (this.subscribedAlbums.length > 0) {

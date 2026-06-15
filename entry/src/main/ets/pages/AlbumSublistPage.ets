@@ -2,7 +2,7 @@ import common from '@ohos.app.ability.common';
 import { promptAction } from '@kit.ArkUI';
 import { AlbumSublistApi } from '../features/mine/data/api/AlbumSublistApi';
 import { SubscribedAlbumItem } from '../features/mine/domain/model/MineModels';
-import { SUBPAGE_BOTTOM_PADDING_VP } from '../common/ui/PageLayout';
+import { getSubpageBottomPaddingVp } from '../common/ui/PageLayout';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const DOMAIN = 0x0000;
@@ -10,6 +10,7 @@ const PAGE_SIZE: number = 25;
 
 @Component
 export struct AlbumSublistPage {
+  @StorageLink('miniPlayerVisible') private miniPlayerVisible: boolean = false;
   @State albums: SubscribedAlbumItem[] = [];
   @State hasMore: boolean = true;
   @State nextOffset: number = 0;
@@ -156,6 +157,10 @@ export struct AlbumSublistPage {
     }
   }
 
+  private getBottomPadding(): number {
+    return getSubpageBottomPaddingVp(this.miniPlayerVisible);
+  }
+
   build() {
     Column({ space: 14 }) {
       Row({ space: 12 }) {
@@ -195,6 +200,7 @@ export struct AlbumSublistPage {
         .width('100%')
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
+        .padding({ bottom: this.getBottomPadding() })
       } else if (this.errorMessage.length > 0 && this.albums.length === 0) {
         Column({ space: 12 }) {
           Text(this.errorMessage)
@@ -208,6 +214,7 @@ export struct AlbumSublistPage {
         .width('100%')
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
+        .padding({ bottom: this.getBottomPadding() })
       } else if (this.albums.length === 0) {
         Column() {
           Text('暂无收藏专辑')
@@ -217,6 +224,7 @@ export struct AlbumSublistPage {
         .width('100%')
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
+        .padding({ bottom: this.getBottomPadding() })
       } else {
         List({ space: 2 }) {
           ForEach(this.albums, (album: SubscribedAlbumItem) => {
@@ -227,6 +235,11 @@ export struct AlbumSublistPage {
           ListItem() {
             this.footerArea();
           }
+          ListItem() {
+            Row() {
+              Blank().height(this.getBottomPadding());
+            }
+          }
         }
         .width('100%')
         .layoutWeight(1)
@@ -235,6 +248,7 @@ export struct AlbumSublistPage {
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: SUBPAGE_BOTTOM_PADDING_VP })
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .padding({ left: 16, right: 16, top: 16 })
   }
 }

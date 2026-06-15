@@ -1,5 +1,8 @@
+import { getSubpageBottomPaddingVp } from '../../../../common/ui/PageLayout';
+
 @Component
 export struct SearchSuggestList {
+  @StorageLink('miniPlayerVisible') private miniPlayerVisible: boolean = false;
   @Prop keywords: string[] = [];
   @Prop loading: boolean = false;
 
@@ -27,6 +30,10 @@ export struct SearchSuggestList {
     })
   }
 
+  private getBottomPadding(): number {
+    return getSubpageBottomPaddingVp(this.miniPlayerVisible);
+  }
+
   build() {
     if (this.loading && this.keywords.length === 0) {
       Column({ space: 8 }) {
@@ -40,6 +47,7 @@ export struct SearchSuggestList {
       .width('100%')
       .layoutWeight(1)
       .justifyContent(FlexAlign.Center)
+      .padding({ bottom: this.getBottomPadding() })
     } else if (this.keywords.length === 0) {
       Text('暂无联想')
         .fontSize(13)
@@ -47,6 +55,7 @@ export struct SearchSuggestList {
         .width('100%')
         .layoutWeight(1)
         .textAlign(TextAlign.Center)
+        .padding({ bottom: this.getBottomPadding() })
     } else {
       List({ space: 0 }) {
         ForEach(this.keywords, (keyword: string) => {
@@ -54,6 +63,11 @@ export struct SearchSuggestList {
             this.itemRow(keyword);
           }
         }, (keyword: string) => keyword)
+        ListItem() {
+          Row() {
+            Blank().height(this.getBottomPadding());
+          }
+        }
       }
       .width('100%')
       .layoutWeight(1)

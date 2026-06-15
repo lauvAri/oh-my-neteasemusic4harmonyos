@@ -1,7 +1,9 @@
 import { SearchAlbumItem } from '../../domain/model/SearchModels';
+import { getSubpageBottomPaddingVp } from '../../../../common/ui/PageLayout';
 
 @Component
 export struct SearchAlbumResultList {
+  @StorageLink('miniPlayerVisible') private miniPlayerVisible: boolean = false;
   @Prop albums: SearchAlbumItem[] = [];
   @Prop loadingMore: boolean = false;
   @Prop hasMore: boolean = false;
@@ -95,6 +97,10 @@ export struct SearchAlbumResultList {
     }
   }
 
+  private getBottomPadding(): number {
+    return getSubpageBottomPaddingVp(this.miniPlayerVisible);
+  }
+
   build() {
     if (this.isLoading) {
       Column({ space: 8 }) {
@@ -108,6 +114,7 @@ export struct SearchAlbumResultList {
       .width('100%')
       .layoutWeight(1)
       .justifyContent(FlexAlign.Center)
+      .padding({ bottom: this.getBottomPadding() })
     } else if (this.errorMessage.length > 0) {
       Column({ space: 8 }) {
         Text(this.errorMessage)
@@ -117,6 +124,7 @@ export struct SearchAlbumResultList {
       .width('100%')
       .layoutWeight(1)
       .justifyContent(FlexAlign.Center)
+      .padding({ bottom: this.getBottomPadding() })
     } else if (this.albums.length === 0) {
       Column() {
         Text('暂无搜索结果')
@@ -126,6 +134,7 @@ export struct SearchAlbumResultList {
       .width('100%')
       .layoutWeight(1)
       .justifyContent(FlexAlign.Center)
+      .padding({ bottom: this.getBottomPadding() })
     } else {
       List({ space: 2 }) {
         ForEach(this.albums, (album: SearchAlbumItem, index: number) => {
@@ -135,6 +144,11 @@ export struct SearchAlbumResultList {
         }, (album: SearchAlbumItem) => `${album.id}`)
         ListItem() {
           this.footerArea();
+        }
+        ListItem() {
+          Row() {
+            Blank().height(this.getBottomPadding());
+          }
         }
       }
       .width('100%')

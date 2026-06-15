@@ -6,10 +6,11 @@ import { Song } from '../features/music/domain/model/Song';
 import { SongList, SongListCallbacks } from '../features/music/ui/component/SongList';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
 import { ArtistSublistApi } from '../features/mine/data/api/ArtistSublistApi';
-import { SUBPAGE_BOTTOM_PADDING_VP } from '../common/ui/PageLayout';
+import { getSubpageBottomPaddingVp } from '../common/ui/PageLayout';
 
 @Component
 export struct ArtistDetailPage {
+  @StorageLink('miniPlayerVisible') private miniPlayerVisible: boolean = false;
   @Consume('pathStack') pathStack: NavPathStack;
   @Prop artistId: number = 0;
 
@@ -161,6 +162,10 @@ export struct ArtistDetailPage {
       })
   }
 
+  private getBottomPadding(): number {
+    return getSubpageBottomPaddingVp(this.miniPlayerVisible);
+  }
+
   build() {
     Column() {
       Row() {
@@ -271,7 +276,7 @@ export struct ArtistDetailPage {
                       .width('100%')
                   }
                   .width('100%')
-                  .padding({ left: 16, right: 16, top: 12, bottom: SUBPAGE_BOTTOM_PADDING_VP })
+                  .padding({ left: 16, right: 16, top: 12, bottom: this.getBottomPadding() })
                 }
                 .width('100%')
                 .layoutWeight(1)
@@ -299,7 +304,7 @@ export struct ArtistDetailPage {
                         }
                       } as SongListCallbacks
                     })
-                    Blank().height(SUBPAGE_BOTTOM_PADDING_VP);
+                    Blank().height(this.getBottomPadding());
                   }
                   .width('100%')
                 }
@@ -349,7 +354,7 @@ export struct ArtistDetailPage {
                     }, (item: ArtistAlbumItem) => `${item.id}`)
                   }
                   .width('100%')
-                  .padding({ left: 16, right: 16, top: 12, bottom: SUBPAGE_BOTTOM_PADDING_VP })
+                  .padding({ left: 16, right: 16, top: 12, bottom: this.getBottomPadding() })
                 }
                 .width('100%')
                 .layoutWeight(1)
@@ -380,5 +385,6 @@ export struct ArtistDetailPage {
     }
     .width('100%')
     .height('100%')
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
   }
 }

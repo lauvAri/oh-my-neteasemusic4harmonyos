@@ -1,9 +1,11 @@
 import common from '@ohos.app.ability.common';
 import { SearchHotDetailItem } from '../../domain/model/SearchHotModels';
 import { SearchHotApi } from '../../data/api/SearchHotApi';
+import { getSubpageBottomPaddingVp } from '../../../../common/ui/PageLayout';
 
 @Component
 export struct HotSearchList {
+  @StorageLink('miniPlayerVisible') private miniPlayerVisible: boolean = false;
   @State private items: SearchHotDetailItem[] = [];
   @State private loading: boolean = true;
   @State private errorMessage: string = '';
@@ -97,6 +99,10 @@ export struct HotSearchList {
     })
   }
 
+  private getBottomPadding(): number {
+    return getSubpageBottomPaddingVp(this.miniPlayerVisible);
+  }
+
   build() {
     if (this.loading) {
       Column({ space: 8 }) {
@@ -110,6 +116,7 @@ export struct HotSearchList {
       .width('100%')
       .layoutWeight(1)
       .justifyContent(FlexAlign.Center)
+      .padding({ bottom: this.getBottomPadding() })
     } else if (this.errorMessage.length > 0) {
       Column({ space: 8 }) {
         Text(this.errorMessage)
@@ -123,6 +130,7 @@ export struct HotSearchList {
       .width('100%')
       .layoutWeight(1)
       .justifyContent(FlexAlign.Center)
+      .padding({ bottom: this.getBottomPadding() })
     } else if (this.items.length === 0) {
       Text('暂无热搜')
         .fontSize(13)
@@ -130,6 +138,7 @@ export struct HotSearchList {
         .width('100%')
         .layoutWeight(1)
         .textAlign(TextAlign.Center)
+        .padding({ bottom: this.getBottomPadding() })
     } else {
       List({ space: 0 }) {
         ForEach(this.items, (item: SearchHotDetailItem, index: number) => {
@@ -137,6 +146,11 @@ export struct HotSearchList {
             this.itemRow(item, index);
           }
         }, (item: SearchHotDetailItem) => `${item.searchWord ?? ''}-${item.score}`)
+        ListItem() {
+          Row() {
+            Blank().height(this.getBottomPadding());
+          }
+        }
       }
       .width('100%')
       .layoutWeight(1)

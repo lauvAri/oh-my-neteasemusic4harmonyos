@@ -1,7 +1,9 @@
 import { SearchPlaylistItem } from '../../domain/model/SearchModels';
+import { getSubpageBottomPaddingVp } from '../../../../common/ui/PageLayout';
 
 @Component
 export struct SearchPlaylistResultList {
+  @StorageLink('miniPlayerVisible') private miniPlayerVisible: boolean = false;
   @Prop playlists: SearchPlaylistItem[] = [];
   @Prop loadingMore: boolean = false;
   @Prop hasMore: boolean = false;
@@ -102,6 +104,10 @@ export struct SearchPlaylistResultList {
     }
   }
 
+  private getBottomPadding(): number {
+    return getSubpageBottomPaddingVp(this.miniPlayerVisible);
+  }
+
   build() {
     if (this.isLoading) {
       Column({ space: 8 }) {
@@ -115,6 +121,7 @@ export struct SearchPlaylistResultList {
       .width('100%')
       .layoutWeight(1)
       .justifyContent(FlexAlign.Center)
+      .padding({ bottom: this.getBottomPadding() })
     } else if (this.errorMessage.length > 0) {
       Column({ space: 8 }) {
         Text(this.errorMessage)
@@ -124,6 +131,7 @@ export struct SearchPlaylistResultList {
       .width('100%')
       .layoutWeight(1)
       .justifyContent(FlexAlign.Center)
+      .padding({ bottom: this.getBottomPadding() })
     } else if (this.playlists.length === 0) {
       Column() {
         Text('暂无搜索结果')
@@ -133,6 +141,7 @@ export struct SearchPlaylistResultList {
       .width('100%')
       .layoutWeight(1)
       .justifyContent(FlexAlign.Center)
+      .padding({ bottom: this.getBottomPadding() })
     } else {
       List({ space: 2 }) {
         ForEach(this.playlists, (item: SearchPlaylistItem, index: number) => {
@@ -142,6 +151,11 @@ export struct SearchPlaylistResultList {
         }, (item: SearchPlaylistItem) => `${item.id}`)
         ListItem() {
           this.footerArea();
+        }
+        ListItem() {
+          Row() {
+            Blank().height(this.getBottomPadding());
+          }
         }
       }
       .width('100%')

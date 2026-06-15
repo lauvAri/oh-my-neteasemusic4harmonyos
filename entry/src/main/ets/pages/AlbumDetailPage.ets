@@ -6,10 +6,11 @@ import { Song } from '../features/music/domain/model/Song';
 import { SongList, SongListCallbacks } from '../features/music/ui/component/SongList';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
 import { AlbumSublistApi } from '../features/mine/data/api/AlbumSublistApi';
-import { SUBPAGE_BOTTOM_PADDING_VP } from '../common/ui/PageLayout';
+import { getSubpageBottomPaddingVp } from '../common/ui/PageLayout';
 
 @Component
 export struct AlbumDetailPage {
+  @StorageLink('miniPlayerVisible') private miniPlayerVisible: boolean = false;
   @Consume('pathStack') pathStack: NavPathStack;
   @Prop albumId: number = 0;
 
@@ -91,6 +92,10 @@ export struct AlbumDetailPage {
       .onClick(() => {
         void this.toggleSubscribe();
       })
+  }
+
+  private getBottomPadding(): number {
+    return getSubpageBottomPaddingVp(this.miniPlayerVisible);
   }
 
   build() {
@@ -235,7 +240,7 @@ export struct AlbumDetailPage {
               })
             }
 
-            Blank().height(SUBPAGE_BOTTOM_PADDING_VP);
+            Blank().height(this.getBottomPadding());
           }
           .width('100%')
           .padding({ left: 16, right: 16, top: 12, bottom: 16 })
@@ -267,6 +272,7 @@ export struct AlbumDetailPage {
     }
     .width('100%')
     .height('100%')
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
   }
 
   @Builder
@@ -294,6 +300,6 @@ export struct AlbumDetailPage {
     }
     .width('100%')
     .height('100%')
-    .padding({ top: 16, bottom: SUBPAGE_BOTTOM_PADDING_VP })
+    .padding({ top: 16, bottom: this.getBottomPadding() })
   }
 }

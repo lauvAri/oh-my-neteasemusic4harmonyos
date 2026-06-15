@@ -13,6 +13,7 @@ export interface PlaylistDetail {
   playCount: number;
   subscribedCount: number;
   description: string | null;
+  subscribed: boolean;
   tags: string[] | null;
   creator: PlaylistDetailCreator;
   tracks: Song[];

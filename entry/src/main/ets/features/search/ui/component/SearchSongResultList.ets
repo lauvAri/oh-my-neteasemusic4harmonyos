@@ -1,9 +1,11 @@
 import { promptAction, router } from '@kit.ArkUI';
 import { Song } from '../../../music/domain/model/Song';
 import { PlayerEngine } from '../../../music/service/PlayerEngine';
+import { getSubpageBottomPaddingVp } from '../../../../common/ui/PageLayout';
 
 @Component
 export struct SearchSongResultList {
+  @StorageLink('miniPlayerVisible') private miniPlayerVisible: boolean = false;
   @Prop songs: Song[] = [];
   @Prop loadingMore: boolean = false;
   @Prop hasMore: boolean = false;
@@ -114,6 +116,10 @@ export struct SearchSongResultList {
     }
   }
 
+  private getBottomPadding(): number {
+    return getSubpageBottomPaddingVp(this.miniPlayerVisible);
+  }
+
   build() {
     if (this.isLoading) {
       Column({ space: 8 }) {
@@ -127,6 +133,7 @@ export struct SearchSongResultList {
       .width('100%')
       .layoutWeight(1)
       .justifyContent(FlexAlign.Center)
+      .padding({ bottom: this.getBottomPadding() })
     } else if (this.errorMessage.length > 0) {
       Column({ space: 8 }) {
         Text(this.errorMessage)
@@ -136,6 +143,7 @@ export struct SearchSongResultList {
       .width('100%')
       .layoutWeight(1)
       .justifyContent(FlexAlign.Center)
+      .padding({ bottom: this.getBottomPadding() })
     } else if (this.songs.length === 0) {
       Column() {
         Text('暂无搜索结果')
@@ -145,6 +153,7 @@ export struct SearchSongResultList {
       .width('100%')
       .layoutWeight(1)
       .justifyContent(FlexAlign.Center)
+      .padding({ bottom: this.getBottomPadding() })
     } else {
       List({ space: 2 }) {
         ForEach(this.songs, (song: Song, index: number) => {
@@ -154,6 +163,11 @@ export struct SearchSongResultList {
         }, (song: Song) => `${song.id}`)
         ListItem() {
           this.footerArea();
+        }
+        ListItem() {
+          Row() {
+            Blank().height(this.getBottomPadding());
+          }
         }
       }
       .width('100%')

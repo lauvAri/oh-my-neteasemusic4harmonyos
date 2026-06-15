@@ -4,13 +4,14 @@ import { DailyRecommendApi } from '../features/music/data/api/DailyRecommendApi'
 import { Song } from '../features/music/domain/model/Song';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
 import { SongList } from '../features/music/ui/component/SongList';
-import { SUBPAGE_BOTTOM_PADDING_VP } from '../common/ui/PageLayout';
+import { getSubpageBottomPaddingVp } from '../common/ui/PageLayout';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const DOMAIN = 0x0000;
 
 @Component
 export struct DailyRecommendPage {
+  @StorageLink('miniPlayerVisible') private miniPlayerVisible: boolean = false;
   @State private loading: boolean = true;
   @State private errorMessage: string = '';
   @State private songs: Song[] = [];
@@ -59,6 +60,10 @@ export struct DailyRecommendPage {
     }
   }
 
+  private getBottomPadding(): number {
+    return getSubpageBottomPaddingVp(this.miniPlayerVisible);
+  }
+
   build() {
     Column({ space: 14 }) {
       Row({ space: 12 }) {
@@ -102,6 +107,7 @@ export struct DailyRecommendPage {
         .width('100%')
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
+        .padding({ bottom: this.getBottomPadding() })
       } else if (this.errorMessage.length > 0) {
         Column({ space: 12 }) {
           Text(this.errorMessage)
@@ -115,19 +121,26 @@ export struct DailyRecommendPage {
         .width('100%')
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
+        .padding({ bottom: this.getBottomPadding() })
       } else {
-        SongList({
-          songs: this.songs,
-          callbacks: {
-            onSongClick: (song: Song, index: number): void => {
-              void this.playSong(song, index);
+        Column() {
+          SongList({
+            songs: this.songs,
+            callbacks: {
+              onSongClick: (song: Song, index: number): void => {
+                void this.playSong(song, index);
+              }
             }
-          }
-        })
+          })
+          Blank().height(this.getBottomPadding())
+        }
+        .width('100%')
+        .layoutWeight(1)
       }
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: SUBPAGE_BOTTOM_PADDING_VP })
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .padding({ left: 16, right: 16, top: 16 })
   }
 }

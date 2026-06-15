@@ -2,22 +2,28 @@ import common from '@ohos.app.ability.common';
 import { promptAction, router } from '@kit.ArkUI';
 import { PlaylistDetail, PlaylistDetailResponse } from '../features/music/playlist/domain/model/PlaylistDetailModels';
 import { PlaylistDetailApi } from '../features/music/playlist/data/api/PlaylistDetailApi';
+import { UserPlaylistApi } from '../features/mine/data/api/UserPlaylistApi';
 import { Song } from '../features/music/domain/model/Song';
 import { SongList, SongListCallbacks } from '../features/music/ui/component/SongList';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
-import { SUBPAGE_BOTTOM_PADDING_VP } from '../common/ui/PageLayout';
+import { getSubpageBottomPaddingVp } from '../common/ui/PageLayout';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
 const DOMAIN = 0x0000;
 
 @Component
 export struct PlaylistDetailPage {
+  @StorageLink('miniPlayerVisible') private miniPlayerVisible: boolean = false;
   @State private playlist: PlaylistDetail | null = null;
   @State private loading: boolean = true;
   @State private errorMessage: string = '';
+  @State private isSubscribed: boolean = false;
+  @State private showDescDialog: boolean = false;
+  @State private subscribePending: boolean = false;
   @Prop playlistId: number = 0;
 
   private api?: PlaylistDetailApi;
+  private userPlaylistApi?: UserPlaylistApi;
   private engine: PlayerEngine = PlayerEngine.getInstance();
   @Consume('pathStack') pathStack: NavPathStack;
 
@@ -31,6 +37,7 @@ export struct PlaylistDetailPage {
 
     const context = getContext(this) as common.UIAbilityContext;
     this.api = new PlaylistDetailApi(context);
+    this.userPlaylistApi = new UserPlaylistApi(context);
     this.loadDetail(this.playlistId);
   }
 
@@ -45,11 +52,29 @@ export struct PlaylistDetailPage {
     try {
       const response: PlaylistDetailResponse = await this.api.getPlaylistDetail(playlistId);
       this.playlist = response.playlist;
+      this.isSubscribed = response.playlist.subscribed;
     } catch (error) {
       const message = (error as Error).message;
       this.errorMessage = message.length > 0 ? message : '歌单详情加载失败';
     } finally {
       this.loading = false;
+    }
+  }
+
+  private async toggleSubscribe(): Promise<void> {
+    if (this.userPlaylistApi === undefined || this.subscribePending) {
+      return;
+    }
+    this.subscribePending = true;
+    const nextSubscribed = !this.isSubscribed;
+    try {
+      await this.userPlaylistApi.subscribe(this.playlistId, nextSubscribed);
+      this.isSubscribed = nextSubscribed;
+      promptAction.showToast({ message: nextSubscribed ? '已收藏' : '已取消收藏' });
+    } catch (error) {
+      promptAction.showToast({ message: `${nextSubscribed ? '收藏' : '取消收藏'}失败：${(error as Error).message}` });
+    } finally {
+      this.subscribePending = false;
     }
   }
 
@@ -80,6 +105,24 @@ export struct PlaylistDetailPage {
     } catch (error) {
       promptAction.showToast({ message: '歌曲播放失败' });
     }
+  }
+  @Builder
+  private subscribeButton() {
+    Button(this.isSubscribed ? '已收藏' : '收藏')
+      .fontSize(13)
+      .fontColor(this.isSubscribed ? $r('app.color.text_secondary') : $r('app.color.text_brand'))
+      .backgroundColor(this.isSubscribed ? $r('app.color.surface_input') : $r('app.color.surface_brand_tint'))
+      .height(32)
+      .padding({ left: 16, right: 16 })
+      .borderRadius(16)
+      .enabled(!this.subscribePending)
+      .onClick(() => {
+        void this.toggleSubscribe();
+      })
+  }
+
+  private getBottomPadding(): number {
+    return getSubpageBottomPaddingVp(this.miniPlayerVisible);
   }
 
   build() {
@@ -121,6 +164,7 @@ export struct PlaylistDetailPage {
         .width('100%')
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
+        .padding({ bottom: this.getBottomPadding() })
       } else if (this.errorMessage.length > 0) {
         Column({ space: 12 }) {
           Text(this.errorMessage)
@@ -136,6 +180,7 @@ export struct PlaylistDetailPage {
         .width('100%')
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
+        .padding({ bottom: this.getBottomPadding() })
       } else if (this.playlist === null) {
         Text('暂无歌单数据')
           .fontSize(14)
@@ -143,73 +188,132 @@ export struct PlaylistDetailPage {
           .width('100%')
           .layoutWeight(1)
           .textAlign(TextAlign.Center)
+        Blank().height(this.getBottomPadding())
       } else {
-        Row({ space: 12 }) {
-          Image(this.playlist.coverImgUrl)
-            .width(100)
-            .height(100)
-            .borderRadius(8)
-            .objectFit(ImageFit.Cover)
+        Scroll() {
+          Column({ space: 12 }) {
+            Row({ space: 12 }) {
+              Image(this.playlist.coverImgUrl)
+                .width(100)
+                .height(100)
+                .borderRadius(8)
+                .objectFit(ImageFit.Cover)
 
-          Column({ space: 4 }) {
-            Text(this.playlist.name)
-              .fontSize(18)
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('app.color.text_primary'))
-              .maxLines(2)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              Column({ space: 4 }) {
+                Text(this.playlist.name)
+                  .fontSize(18)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor($r('app.color.text_primary'))
+                  .maxLines(2)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-            Text(this.playlist.creator.nickname)
-              .fontSize(12)
-              .fontColor($r('app.color.text_secondary'))
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
+                Text(this.playlist.creator.nickname)
+                  .fontSize(12)
+                  .fontColor($r('app.color.text_secondary'))
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-            Text(`${this.formatCount(this.playlist.playCount)}次播放 · ${this.formatCount(this.playlist.subscribedCount)}收藏`)
-              .fontSize(11)
-              .fontColor($r('app.color.text_tertiary'))
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
+                Text(`${this.formatCount(this.playlist.playCount)}次播放 · ${this.formatCount(this.playlist.subscribedCount)}收藏`)
+                  .fontSize(11)
+                  .fontColor($r('app.color.text_tertiary'))
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
 
-            if (this.playlist.tags !== null && this.playlist.tags.length > 0) {
-              Text(this.playlist.tags.join(' / '))
-                .fontSize(11)
-                .fontColor($r('app.color.text_tertiary'))
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                if (this.playlist.tags !== null && this.playlist.tags.length > 0) {
+                  Text(this.playlist.tags.join(' / '))
+                    .fontSize(11)
+                    .fontColor($r('app.color.text_tertiary'))
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                }
+              }
+              .layoutWeight(1)
+              .alignItems(HorizontalAlign.Start)
+
+              this.subscribeButton();
             }
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
-        }
-        .width('100%')
-
-        if (this.playlist.description !== null && this.playlist.description.length > 0) {
-          Text(this.playlist.description)
-            .fontSize(12)
-            .fontColor($r('app.color.text_secondary'))
-            .maxLines(3)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
             .width('100%')
-        }
 
-        Text(`共 ${this.playlist.trackCount} 首`)
-          .fontSize(13)
-          .fontColor($r('app.color.text_secondary'))
-          .width('100%')
+            if (this.playlist.description !== null && this.playlist.description.length > 0) {
+              Row() {
+                Text(this.playlist.description)
+                  .fontSize(13)
+                  .fontColor($r('app.color.text_secondary'))
+                  .maxLines(2)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .layoutWeight(1)
+                  .lineHeight(20)
 
-        SongList({
-          songs: this.playlist.tracks,
-          callbacks: {
-            onSongClick: (song: Song, index: number): void => {
-              void this.playSong(song, index);
+                Text('>')
+                  .fontSize(16)
+                  .fontColor($r('app.color.text_quaternary'))
+                  .margin({ left: 8 })
+              }
+              .width('100%')
+              .padding({ top: 4, bottom: 4 })
+              .onClick(() => {
+                this.showDescDialog = true;
+              })
             }
+
+            Text(`共 ${this.playlist.trackCount} 首`)
+              .fontSize(13)
+              .fontColor($r('app.color.text_secondary'))
+              .width('100%')
+
+            SongList({
+              songs: this.playlist.tracks,
+              callbacks: {
+                onSongClick: (song: Song, index: number): void => {
+                  void this.playSong(song, index);
+                }
+              }
+            })
+
+            Blank().height(this.getBottomPadding())
+          }
+          .width('100%')
+        }
+        .layoutWeight(1)
+        .bindSheet(this.showDescDialog, this.descSheet(), {
+          height: '60%',
+          showClose: false,
+          dragBar: true,
+          onDisappear: () => {
+            this.showDescDialog = false;
           }
         })
       }
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: SUBPAGE_BOTTOM_PADDING_VP })
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .padding({ left: 16, right: 16, top: 16 })
+  }
+
+  @Builder
+  private descSheet() {
+    Column() {
+      Text('歌单简介')
+        .fontSize(17)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.text_primary'))
+        .width('100%')
+        .textAlign(TextAlign.Center)
+        .padding({ top: 4, bottom: 16 })
+
+      Scroll() {
+        Text(this.playlist ? this.playlist.description ?? '' : '')
+          .fontSize(15)
+          .fontColor($r('app.color.text_secondary'))
+          .lineHeight(26)
+          .width('100%')
+          .padding({ left: 20, right: 20, bottom: 32 })
+      }
+      .layoutWeight(1)
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ top: 16, bottom: this.getBottomPadding() })
   }
 }

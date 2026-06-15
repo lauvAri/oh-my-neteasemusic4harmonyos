@@ -7,7 +7,9 @@ import { ArtistDetailPage } from './ArtistDetailPage';
 import { AlbumDetailPage } from './AlbumDetailPage';
 import { ArtistSublistPage } from './ArtistSublistPage';
 import { AlbumSublistPage } from './AlbumSublistPage';
-import { MiniPlayerBar } from '../features/music/ui/mini/MiniPlayerBar';
+import { UserCreatedPlaylistsPage } from './UserCreatedPlaylistsPage';
+import { UserCollectedPlaylistsPage } from './UserCollectedPlaylistsPage';
+import { MiniPlayerGlassBar } from '../features/music/ui/mini/MiniPlayerGlassBar';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
 import common from '@ohos.app.ability.common';
 import { HttpClient } from '../common/network/HttpClient';
@@ -33,42 +35,63 @@ function MainTabsRouteMap(name: string, param: Object) {
       SearchPage();
     }
     .hideTitleBar(true)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     .onHidden(trackDepth)
   } else if (name === 'DailyRecommendPage') {
     NavDestination() {
       DailyRecommendPage();
     }
     .hideTitleBar(true)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     .onHidden(trackDepth)
   } else if (name === 'PlaylistDetailPage') {
     NavDestination() {
       PlaylistDetailPage({ playlistId: param as number });
     }
     .hideTitleBar(true)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     .onHidden(trackDepth)
   } else if (name === 'ArtistDetailPage') {
     NavDestination() {
       ArtistDetailPage({ artistId: param as number });
     }
     .hideTitleBar(true)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     .onHidden(trackDepth)
   } else if (name === 'AlbumDetailPage') {
     NavDestination() {
       AlbumDetailPage({ albumId: param as number });
     }
     .hideTitleBar(true)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     .onHidden(trackDepth)
   } else if (name === 'ArtistSublistPage') {
     NavDestination() {
       ArtistSublistPage();
     }
     .hideTitleBar(true)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     .onHidden(trackDepth)
   } else if (name === 'AlbumSublistPage') {
     NavDestination() {
       AlbumSublistPage();
     }
     .hideTitleBar(true)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .onHidden(trackDepth)
+  } else if (name === 'UserCreatedPlaylistsPage') {
+    NavDestination() {
+      UserCreatedPlaylistsPage();
+    }
+    .hideTitleBar(true)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .onHidden(trackDepth)
+  } else if (name === 'UserCollectedPlaylistsPage') {
+    NavDestination() {
+      UserCollectedPlaylistsPage();
+    }
+    .hideTitleBar(true)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     .onHidden(trackDepth)
   }
 }
@@ -127,24 +150,12 @@ struct MainTabs {
   }
 
   @Builder
-  private fullDockContent() {
-    Column({ space: this.miniPlayerVisible ? 8 : 0 }) {
-      if (this.miniPlayerVisible) {
-        MiniPlayerBar();
-      }
-
-      Row({ space: 8 }) {
-        this.tabButton('首页', 0);
-        this.tabButton('我的', 1);
-      }
-      .width('100%')
+  private tabsRow() {
+    Row({ space: 8 }) {
+      this.tabButton('首页', 0);
+      this.tabButton('我的', 1);
     }
     .width('100%')
-  }
-
-  @Builder
-  private miniDockContent() {
-    MiniPlayerBar();
   }
 
   build() {
@@ -197,26 +208,27 @@ struct MainTabs {
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
 
       if (this.pathDepth === 0) {
-        GlassSurface({
-          blurStyle: BlurStyle.Thin,
-          radius: 24,
-          contentSpacing: this.miniPlayerVisible ? 8 : 0,
-          contentPadding: { left: 12, right: 12, top: 10, bottom: 10 },
-          content: () => { this.fullDockContent(); }
-        })
-          .width('100%')
-          .padding({ left: 12, right: 12, bottom: 12 })
-          .zIndex(10)
+        Column({ space: 0 }) {
+          if (this.miniPlayerVisible) {
+            MiniPlayerGlassBar();
+          }
+
+          GlassSurface({
+            blurStyle: BlurStyle.Thin,
+            radius: 24,
+            contentSpacing: 0,
+            contentPadding: { left: 12, right: 12, top: 10, bottom: 10 },
+            content: () => { this.tabsRow(); }
+          })
+            .width('100%')
+        }
+        .width('100%')
+        .padding({ left: 12, right: 12, bottom: 12 })
+        .zIndex(10)
       } else if (this.miniPlayerVisible) {
-        GlassSurface({
-          blurStyle: BlurStyle.Thin,
-          radius: 18,
-          contentSpacing: 0,
-          contentPadding: { left: 12, right: 12, top: 8, bottom: 8 },
-          content: () => { this.miniDockContent(); }
-        })
+        MiniPlayerGlassBar()
           .width('100%')
-          .padding({ left: 12, right: 12, bottom: 12 })
+          .padding({ left: 12, right: 12, bottom: 0 })
           .zIndex(10)
       }
     }
