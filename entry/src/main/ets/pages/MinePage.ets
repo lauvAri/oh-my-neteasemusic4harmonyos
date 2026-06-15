@@ -34,6 +34,10 @@ export struct MinePage {
   @State createdPlaylistCount: number = 0;
   @State collectedPlaylistCount: number = 0;
   @State contentLoading: boolean = false;
+  @State showCreatePlaylistSheet: boolean = false;
+  @State newPlaylistName: string = '';
+  @State newPlaylistPrivate: boolean = false;
+  @State createPlaylistPending: boolean = false;
 
   private authService?: AuthService;
   private userPlaylistApi?: UserPlaylistApi;
@@ -146,6 +150,48 @@ export struct MinePage {
     router.replaceUrl({ url: 'pages/Index' });
   }
 
+  private openCreatePlaylistSheet(): void {
+    this.showCreatePlaylistSheet = true;
+  }
+
+  private closeCreatePlaylistSheet(): void {
+    if (this.createPlaylistPending) {
+      return;
+    }
+    this.showCreatePlaylistSheet = false;
+  }
+
+  private resetCreatePlaylistForm(): void {
+    this.newPlaylistName = '';
+    this.newPlaylistPrivate = false;
+  }
+
+  private async submitCreatePlaylist(): Promise<void> {
+    if (this.userPlaylistApi === undefined || this.createPlaylistPending) {
+      return;
+    }
+
+    const playlistName = this.newPlaylistName.trim();
+    if (playlistName.length === 0) {
+      promptAction.showToast({ message: '请输入歌单名称' });
+      return;
+    }
+
+    this.createPlaylistPending = true;
+    try {
+      await this.userPlaylistApi.createPlaylist(playlistName, this.newPlaylistPrivate);
+      promptAction.showToast({ message: '歌单创建成功' });
+      this.resetCreatePlaylistForm();
+      this.showCreatePlaylistSheet = false;
+      await this.loadMyContent();
+    } catch (error) {
+      const message = (error as Error).message ?? '';
+      promptAction.showToast({ message: message.length > 0 ? message : '歌单创建失败' });
+    } finally {
+      this.createPlaylistPending = false;
+    }
+  }
+
   @Builder
   private infoRow(label: string, value: string) {
     Row() {
@@ -255,6 +301,125 @@ export struct MinePage {
     .onClick(() => {
       onTap();
     })
+  }
+
+  @Builder
+  private createPlaylistEntry() {
+    Row({ space: 12 }) {
+      Image($r('app.media.ic_add_box'))
+        .width(22)
+        .height(22)
+        .fillColor($r('app.color.text_brand'))
+      Column({ space: 3 }) {
+        Text('新建歌单')
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_primary'))
+        Text('创建新的音乐收藏空间')
+          .fontSize(12)
+          .fontColor($r('app.color.text_secondary'))
+      }
+      .layoutWeight(1)
+      Text('创建')
+        .fontSize(13)
+        .fontColor($r('app.color.text_brand'))
+    }
+    .width('100%')
+    .height(56)
+    .padding(12)
+    .backgroundColor($r('app.color.surface_info'))
+    .borderRadius(10)
+    .onClick(() => {
+      this.openCreatePlaylistSheet();
+    })
+  }
+
+  @Builder
+  private privacyToggle() {
+    Row({ space: 10 }) {
+      Column({ space: 3 }) {
+        Text('隐私歌单')
+          .fontSize(15)
+          .fontColor($r('app.color.text_primary'))
+        Text('仅自己可见，创建后仍可继续添加歌曲')
+          .fontSize(12)
+          .fontColor($r('app.color.text_secondary'))
+      }
+      .layoutWeight(1)
+      Toggle({ type: ToggleType.Switch, isOn: this.newPlaylistPrivate })
+        .selectedColor($r('app.color.text_brand'))
+        .onChange((isOn: boolean) => {
+          this.newPlaylistPrivate = isOn;
+        })
+    }
+    .width('100%')
+    .padding(12)
+    .backgroundColor($r('app.color.surface_info'))
+    .borderRadius(10)
+  }
+
+  @Builder
+  private createPlaylistSheet() {
+    Column({ space: 18 }) {
+      Row() {
+        Column({ space: 5 }) {
+          Text('新建歌单')
+            .fontSize(22)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.text_primary'))
+          Text('创建一个新的音乐收藏空间')
+            .fontSize(13)
+            .fontColor($r('app.color.text_secondary'))
+        }
+        .layoutWeight(1)
+      }
+      .width('100%')
+
+      Column({ space: 8 }) {
+        Text('歌单名称')
+          .fontSize(13)
+          .fontColor($r('app.color.text_secondary'))
+          .width('100%')
+        TextInput({ text: this.newPlaylistName, placeholder: '输入歌单名称' })
+          .height(48)
+          .fontSize(15)
+          .fontColor($r('app.color.text_primary'))
+          .placeholderColor($r('app.color.text_muted_placeholder'))
+          .backgroundColor($r('app.color.surface_input'))
+          .borderRadius(10)
+          .onChange((value: string) => {
+            this.newPlaylistName = value;
+          })
+      }
+      .width('100%')
+
+      this.privacyToggle();
+
+      Row({ space: 10 }) {
+        Button('取消')
+          .layoutWeight(1)
+          .height(46)
+          .fontColor($r('app.color.text_secondary'))
+          .backgroundColor($r('app.color.surface_subtle'))
+          .enabled(!this.createPlaylistPending)
+          .onClick(() => {
+            this.closeCreatePlaylistSheet();
+          })
+        Button(this.createPlaylistPending ? '创建中...' : '创建')
+          .layoutWeight(1)
+          .height(46)
+          .fontColor($r('app.color.text_on_dark_primary'))
+          .backgroundColor($r('app.color.text_brand'))
+          .enabled(!this.createPlaylistPending)
+          .onClick(() => {
+            void this.submitCreatePlaylist();
+          })
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .padding({ left: 20, right: 20, top: 12, bottom: 28 })
+    .backgroundColor(Color.White)
   }
 
   @Builder
@@ -451,8 +616,9 @@ export struct MinePage {
                 this.likedMusicCard();
               }
 
-              if (this.createdPlaylistCount > 0 || this.collectedPlaylistCount > 0) {
-                Column({ space: 8 }) {
+              Column({ space: 8 }) {
+                this.createPlaylistEntry();
+                if (this.createdPlaylistCount > 0 || this.collectedPlaylistCount > 0) {
                   if (this.createdPlaylistCount > 0) {
                     this.playlistCategoryEntry(
                       '创建的歌单',
@@ -536,5 +702,13 @@ export struct MinePage {
     }
     .width('100%')
     .height('100%')
+    .bindSheet(this.showCreatePlaylistSheet, this.createPlaylistSheet(), {
+      height: 330,
+      showClose: false,
+      dragBar: true,
+      onDisappear: () => {
+        this.showCreatePlaylistSheet = false;
+      }
+    })
   }
 }

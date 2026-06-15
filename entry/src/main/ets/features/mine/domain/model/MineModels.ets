@@ -29,6 +29,22 @@ export interface UserPlaylistSublistResponse {
   data: UserPlaylistSublist;
 }
 
+export interface CreatedPlaylist {
+  id: number;
+  name: string;
+  coverImgUrl: string;
+  trackCount: number;
+  playCount: number;
+  privacy: number;
+}
+
+export interface CreatePlaylistResponse {
+  code: number;
+  id: number;
+  playlist: CreatedPlaylist;
+  message?: string;
+}
+
 export interface SubscribedAlbumArtist {
   id: number;
   name: string;

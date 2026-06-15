@@ -2,7 +2,12 @@ import common from '@ohos.app.ability.common';
 import { HttpClient } from '../../../../common/network/HttpClient';
 import { NETEASE_API_BASE_URL } from '../../../../common/network/ApiConfig';
 import { SessionStore } from '../../../../common/storage/SessionStore';
-import { UserPlaylistResponse, UserPlaylistSublistResponse, FollowResponse } from '../../domain/model/MineModels';
+import {
+  UserPlaylistResponse,
+  UserPlaylistSublistResponse,
+  FollowResponse,
+  CreatePlaylistResponse
+} from '../../domain/model/MineModels';
 
 export class UserPlaylistApi {
   private httpClient: HttpClient;
@@ -21,6 +26,13 @@ export class UserPlaylistApi {
 
   async getUserCollectedPlaylists(uid: number, limit: number = 30, offset: number = 0): Promise<UserPlaylistSublistResponse> {
     return this.httpClient.post<UserPlaylistSublistResponse>(`/user/playlist/collect?uid=${uid}&limit=${limit}&offset=${offset}`);
+  }
+
+  async createPlaylist(name: string, isPrivate: boolean): Promise<CreatePlaylistResponse> {
+    const privacyQuery = isPrivate ? '&privacy=10' : '';
+    return this.httpClient.post<CreatePlaylistResponse>(
+      `/playlist/create?name=${encodeURIComponent(name)}${privacyQuery}`
+    );
   }
 
   async subscribe(playlistId: number, subscribe: boolean): Promise<FollowResponse> {
