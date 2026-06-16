@@ -19,7 +19,7 @@ export class SearchApi {
 
   private buildPath(keywords: string, type: number, offset: number, limit: number): string {
     const encoded = encodeURIComponent(keywords);
-    return `/search?keywords=${encoded}&type=${type}&offset=${offset}&limit=${limit}`;
+    return `/search?keywords=${encoded}&type=${type}&offset=${offset}&limit=${limit}&timestamp=${Date.now()}`;
   }
 
   async searchSongs(keywords: string, offset: number, limit: number): Promise<SearchSongResponse> {
@@ -40,6 +40,6 @@ export class SearchApi {
 
   async searchSuggest(keywords: string): Promise<SearchSuggestResponse> {
     const encoded = encodeURIComponent(keywords);
-    return this.httpClient.post<SearchSuggestResponse>(`/search/suggest?keywords=${encoded}`);
+    return this.httpClient.post<SearchSuggestResponse>(`/search/suggest?keywords=${encoded}&timestamp=${Date.now()}`);
   }
 }

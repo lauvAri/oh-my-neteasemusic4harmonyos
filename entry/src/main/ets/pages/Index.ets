@@ -29,8 +29,8 @@ struct Index {
 
   private async tryEnterWithSavedCookie(): Promise<void> {
     this.statusText = '正在检查登录状态...';
-    const hasValidSession = await this.authService?.hasValidSession();
-    if (hasValidSession === true) {
+    const cookie = await this.authService?.getCookie() ?? '';
+    if (cookie.trim().length > 0) {
       router.replaceUrl({ url: 'pages/MainTabs' });
       return;
     }

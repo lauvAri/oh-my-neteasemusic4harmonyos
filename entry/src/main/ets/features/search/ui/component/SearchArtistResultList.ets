@@ -10,6 +10,15 @@ export struct SearchArtistResultList {
   @Prop isLoading: boolean = false;
   @Prop errorMessage: string = '';
   onLoadMore: () => void = () => {};
+  @Consume('pathStack') pathStack: NavPathStack;
+
+  private handleItemClick(artist: SearchArtistItem): void {
+    this.pathStack.pushPath({
+      name: 'ArtistDetailPage',
+      param: artist.id
+    });
+    AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+  }
 
   @Builder
   private artistRow(artist: SearchArtistItem, index: number) {
@@ -50,6 +59,9 @@ export struct SearchArtistResultList {
     }
     .width('100%')
     .padding({ top: 8, bottom: 8 })
+    .onClick(() => {
+      this.handleItemClick(artist);
+    })
   }
 
   @Builder

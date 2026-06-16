@@ -12,20 +12,20 @@ export class ArtistApi {
   }
 
   async getArtistDetail(id: number): Promise<ArtistDetailResponse> {
-    return this.httpClient.post<ArtistDetailResponse>(`/artist/detail?id=${id}`);
+    return this.httpClient.post<ArtistDetailResponse>(`/artist/detail?id=${id}&timestamp=${Date.now()}`);
   }
 
   async getArtistSongs(id: number, order: string = 'hot', limit: number = 50,
     offset: number = 0): Promise<ArtistSongsResponse> {
     return this.httpClient.post<ArtistSongsResponse>(
-      `/artist/songs?id=${id}&order=${order}&limit=${limit}&offset=${offset}`
+      `/artist/songs?id=${id}&order=${order}&limit=${limit}&offset=${offset}&timestamp=${Date.now()}`
     );
   }
 
   async getArtistAlbums(id: number, limit: number = 30,
     offset: number = 0): Promise<ArtistAlbumsResponse> {
     return this.httpClient.post<ArtistAlbumsResponse>(
-      `/artist/album?id=${id}&limit=${limit}&offset=${offset}`
+      `/artist/album?id=${id}&limit=${limit}&offset=${offset}&timestamp=${Date.now()}`
     );
   }
 }

@@ -12,12 +12,14 @@ export class AlbumSublistApi {
   }
 
   async getAlbumSublist(limit: number = 25, offset: number = 0): Promise<AlbumSublistResponse> {
-    return this.httpClient.post<AlbumSublistResponse>(`/album/sublist?limit=${limit}&offset=${offset}`);
+    return this.httpClient.post<AlbumSublistResponse>(
+      `/album/sublist?limit=${limit}&offset=${offset}&timestamp=${Date.now()}`
+    );
   }
 
   async subscribe(albumId: number, subscribe: boolean = true): Promise<FollowResponse> {
     const t = subscribe ? 1 : 0;
-    return this.httpClient.post<FollowResponse>(`/album/sub?id=${albumId}&t=${t}`);
+    return this.httpClient.post<FollowResponse>(`/album/sub?id=${albumId}&t=${t}&timestamp=${Date.now()}`);
   }
 
   private static subscribedIds: Set<number> = new Set();
@@ -36,5 +38,9 @@ export class AlbumSublistApi {
 
   static isSubscribed(id: number): boolean {
     return AlbumSublistApi.subscribedIds.has(id);
+  }
+
+  static clearSubscribedIds(): void {
+    AlbumSublistApi.subscribedIds = new Set();
   }
 }

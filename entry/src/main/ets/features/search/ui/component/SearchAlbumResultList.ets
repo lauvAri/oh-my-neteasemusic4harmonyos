@@ -10,6 +10,7 @@ export struct SearchAlbumResultList {
   @Prop isLoading: boolean = false;
   @Prop errorMessage: string = '';
   onLoadMore: () => void = () => {};
+  @Consume('pathStack') pathStack: NavPathStack;
 
   private formatYear(ts: number): string {
     if (ts <= 0) {
@@ -27,6 +28,14 @@ export struct SearchAlbumResultList {
       return album.artists[0].name;
     }
     return '未知艺术家';
+  }
+
+  private handleItemClick(album: SearchAlbumItem): void {
+    this.pathStack.pushPath({
+      name: 'AlbumDetailPage',
+      param: album.id
+    });
+    AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
   }
 
   @Builder
@@ -62,6 +71,9 @@ export struct SearchAlbumResultList {
     }
     .width('100%')
     .padding({ top: 8, bottom: 8 })
+    .onClick(() => {
+      this.handleItemClick(album);
+    })
   }
 
   @Builder

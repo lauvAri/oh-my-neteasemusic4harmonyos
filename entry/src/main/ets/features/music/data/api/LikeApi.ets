@@ -17,10 +17,10 @@ export class LikeApi {
   }
 
   async like(songId: number): Promise<LikeResponse> {
-    return this.httpClient.post<LikeResponse>(`/like?id=${songId}`);
+    return this.httpClient.post<LikeResponse>(`/like?id=${songId}&timestamp=${Date.now()}`);
   }
 
   async unlike(songId: number): Promise<LikeResponse> {
-    return this.httpClient.post<LikeResponse>(`/like?id=${songId}&like=false`);
+    return this.httpClient.post<LikeResponse>(`/like?id=${songId}&like=false&timestamp=${Date.now()}`);
   }
 }

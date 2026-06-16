@@ -12,6 +12,6 @@ export class AlbumApi {
   }
 
   async getAlbumDetail(id: number): Promise<AlbumDetailResponse> {
-    return this.httpClient.post<AlbumDetailResponse>(`/album?id=${id}`);
+    return this.httpClient.post<AlbumDetailResponse>(`/album?id=${id}&timestamp=${Date.now()}`);
   }
 }

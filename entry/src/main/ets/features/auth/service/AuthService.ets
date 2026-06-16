@@ -98,22 +98,7 @@ export class AuthService {
   }
 
   async getAccountInfo(): Promise<UserAccountResponse> {
-    return this.httpClient.post<UserAccountResponse>('/user/account');
-  }
-
-  async hasValidSession(): Promise<boolean> {
-    const cookie = await this.getCookie();
-    if (cookie.trim().length === 0) {
-      return false;
-    }
-
-    try {
-      await this.getAccountInfo();
-      return true;
-    } catch (error) {
-      await this.clearCookie();
-      return false;
-    }
+    return this.httpClient.post<UserAccountResponse>(`/user/account?timestamp=${Date.now()}`);
   }
 
   async getCookie(): Promise<string> {

@@ -720,4 +720,63 @@ export class PlayerEngine {
       await this.resume();
     }
   }
+
+  async resetSessionUserState(): Promise<void> {
+    this.stopProgressTimer();
+    if (this.avPlayer !== null) {
+      try {
+        const state = this.playerState;
+        if (state === 'playing' || state === 'paused') {
+          await this.avPlayer.stop();
+        }
+        await this.avPlayer.release();
+      } catch (error) {
+        console.error(`reset player failed: ${(error as Error).message}`);
+      } finally {
+        this.avPlayer = null;
+        this.playerState = '';
+      }
+    }
+    this.currentSongId = 0;
+    this.currentUrl = '';
+    this.currentTitle = '未选择歌曲';
+    this.currentArtist = '';
+    this.currentCover = '';
+    this.metaRequestVersion += 1;
+    this.lyricRequestVersion += 1;
+    this.playQueue = [];
+    this.currentQueueIndex = -1;
+    this.shuffleOrder = [];
+    this.shuffleCursor = -1;
+    this.lastReportedDuration = 0;
+    this.playbackMode = PlaybackMode.SEQUENTIAL;
+    AppStorage.setOrCreate<number>('selectedSongId', 0);
+    AppStorage.setOrCreate<string>('miniPlayerTitle', '未选择歌曲');
+    AppStorage.setOrCreate<string>('miniPlayerArtist', '');
+    AppStorage.setOrCreate<string>('miniPlayerCover', '');
+    AppStorage.setOrCreate<boolean>('miniPlayerVisible', false);
+    AppStorage.setOrCreate<boolean>('miniPlayerPlaying', false);
+    AppStorage.setOrCreate<number>('playerCurrentMs', 0);
+    AppStorage.setOrCreate<number>('playerDurationMs', 0);
+    AppStorage.setOrCreate<string>('currentSongRawLyric', '');
+    AppStorage.setOrCreate<string>('currentSongLyric', '');
+    AppStorage.setOrCreate<string>('currentSongLyricError', '');
+    AppStorage.setOrCreate<boolean>('currentSongLyricLoading', false);
+    AppStorage.setOrCreate<string>('currentSongTranslationLyric', '');
+    AppStorage.setOrCreate<string>('currentSongRomajiLyric', '');
+    AppStorage.setOrCreate<boolean>('currentSongHasTranslation', false);
+    AppStorage.setOrCreate<boolean>('currentSongHasRomaji', false);
+    AppStorage.setOrCreate<Song[]>('playQueue', []);
+    AppStorage.setOrCreate<number>('currentQueueIndex', -1);
+    AppStorage.setOrCreate<number>('playbackMode', PlaybackMode.SEQUENTIAL);
+    AppStorage.setOrCreate<boolean>('currentSongLiked', false);
+    if (this.session !== null) {
+      try {
+        await this.reportSessionMetadata();
+        await this.reportSessionState();
+      } catch (error) {
+        console.error(`reset session report failed: ${(error as Error).message}`);
+      }
+    }
+  }
 }

@@ -12,6 +12,6 @@ export class ToplistApi {
   }
 
   async getToplist(): Promise<ToplistResponse> {
-    return this.httpClient.post<ToplistResponse>('/toplist');
+    return this.httpClient.post<ToplistResponse>(`/toplist?timestamp=${Date.now()}`);
   }
 }

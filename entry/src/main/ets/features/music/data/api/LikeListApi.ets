@@ -17,7 +17,7 @@ export class LikeListApi {
   }
 
   async getLikedSongIds(uid: number): Promise<number[]> {
-    const response = await this.httpClient.post<LikeListResponse>(`/likelist?uid=${uid}`);
+    const response = await this.httpClient.post<LikeListResponse>(`/likelist?uid=${uid}&timestamp=${Date.now()}`);
     return response.ids ?? [];
   }
 }

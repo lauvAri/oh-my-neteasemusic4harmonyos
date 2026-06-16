@@ -12,6 +12,6 @@ export class SearchHotApi {
   }
 
   async getHotDetail(): Promise<SearchHotDetailResponse> {
-    return this.httpClient.post<SearchHotDetailResponse>('/search/hot/detail');
+    return this.httpClient.post<SearchHotDetailResponse>(`/search/hot/detail?timestamp=${Date.now()}`);
   }
 }

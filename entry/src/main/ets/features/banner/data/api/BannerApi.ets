@@ -15,6 +15,6 @@ export class BannerApi {
 
   async getBanners(): Promise<BannerResponse> {
     const body: BannerRequest = { type: 0 };
-    return this.httpClient.post<BannerResponse>('/banner', body);
+    return this.httpClient.post<BannerResponse>(`/banner?timestamp=${Date.now()}`, body);
   }
 }

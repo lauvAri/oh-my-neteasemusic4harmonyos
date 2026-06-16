@@ -1,6 +1,9 @@
 import { webview } from '@kit.ArkWeb';
+import { promptAction } from '@kit.ArkUI';
 import { GlassSurface } from '../common/ui/GlassSurface';
 import { getSubpageBottomPaddingVp } from '../common/ui/PageLayout';
+import { OrpheusUrlRouter, OrpheusRoute } from '../common/util/OrpheusUrlRouter';
+import { PlayerEngine } from '../features/music/service/PlayerEngine';
 
 interface WebViewParams {
   url: string;
@@ -39,6 +42,65 @@ export struct WebViewPage {
       console.error(`extract host failed: ${(error as Error).message}`);
     }
     return '网页';
+  }
+
+  private handleInterceptedUrl(rawUrl: string): boolean {
+    const route: OrpheusRoute = OrpheusUrlRouter.parse(rawUrl);
+    if (route.handled) {
+      if (route.action === 'web') {
+        return false;
+      }
+      if (route.action === 'download') {
+        this.controller.stop();
+        promptAction.showToast({ message: '已拦截网易云音乐下载跳转' });
+        console.info(`webview blocked download url=${rawUrl}`);
+        return true;
+      }
+      this.applyParsedRoute(route);
+      this.controller.stop();
+      return true;
+    }
+    const lower: string = (rawUrl ?? '').toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return false;
+    }
+    this.controller.stop();
+    promptAction.showToast({ message: '暂不支持该类型链接' });
+    console.info(`webview blocked unsupported url=${rawUrl}`);
+    return true;
+  }
+
+  private async applyParsedRoute(route: OrpheusRoute): Promise<void> {
+    switch (route.action) {
+      case 'song':
+        await this.playSong(route.targetId);
+        return;
+      case 'album':
+        this.pushDetail('AlbumDetailPage', route.targetId);
+        return;
+      case 'artist':
+        this.pushDetail('ArtistDetailPage', route.targetId);
+        return;
+      case 'playlist':
+        this.pushDetail('PlaylistDetailPage', route.targetId);
+        return;
+      default:
+        return;
+    }
+  }
+
+  private async playSong(songId: number): Promise<void> {
+    try {
+      await PlayerEngine.getInstance().playSong(songId);
+    } catch (error) {
+      promptAction.showToast({ message: '歌曲播放失败' });
+      console.error(`webview play song failed: ${(error as Error).message}`);
+    }
+  }
+
+  private pushDetail(name: string, id: number): void {
+    this.pathStack.pushPath({ name: name, param: id });
+    AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
   }
 
   private handleBack(): void {
@@ -85,9 +147,24 @@ export struct WebViewPage {
             .onlineImageAccess(true)
             .imageAccess(true)
             .mixedMode(MixedMode.All)
-            .onPageBegin(() => {
+            .onLoadIntercept((event) => {
+              const data = event?.data;
+              const raw: string = data?.getRequestUrl() ?? '';
+              return this.handleInterceptedUrl(raw);
+            })
+            .onPageBegin((event) => {
               this.isLoading = true;
               this.hasError = false;
+              const navigatedUrl: string = event?.url ?? '';
+              const route: OrpheusRoute = OrpheusUrlRouter.parse(navigatedUrl);
+              if (route.handled && route.action === 'download') {
+                this.controller.stop();
+                if (this.url.length > 0) {
+                  this.controller.loadUrl(this.url);
+                }
+                promptAction.showToast({ message: '已拦截网易云音乐下载跳转' });
+                console.info(`webview onPageBegin blocked download url=${navigatedUrl}`);
+              }
             })
             .onPageEnd(() => {
               this.isLoading = false;

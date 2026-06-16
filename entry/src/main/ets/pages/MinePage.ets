@@ -8,6 +8,7 @@ import { UserPlaylistItem, SubscribedAlbumItem, SubscribedArtistItem } from
   '../features/mine/domain/model/MineModels';
 import { TAB_PAGE_BOTTOM_PADDING_VP } from '../common/ui/PageLayout';
 import { TwoLineTitle } from '../common/ui/TwoLineTitle';
+import { UserStateCleaner } from '../common/util/UserStateCleaner';
 
 @Component
 export struct MinePage {
@@ -147,6 +148,7 @@ export struct MinePage {
 
   private async logout(): Promise<void> {
     await this.authService?.clearCookie();
+    await UserStateCleaner.clearAll();
     promptAction.showToast({ message: '已退出登录' });
     router.replaceUrl({ url: 'pages/Index' });
   }

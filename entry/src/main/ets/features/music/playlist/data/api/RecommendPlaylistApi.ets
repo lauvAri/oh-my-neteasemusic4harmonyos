@@ -12,6 +12,6 @@ export class RecommendPlaylistApi {
   }
 
   async getDailyRecommendResources(): Promise<RecommendPlaylistResponse> {
-    return this.httpClient.post<RecommendPlaylistResponse>('/recommend/resource');
+    return this.httpClient.post<RecommendPlaylistResponse>(`/recommend/resource?timestamp=${Date.now()}`);
   }
 }

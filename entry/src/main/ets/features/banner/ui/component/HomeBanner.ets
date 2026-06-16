@@ -4,16 +4,12 @@ import { BannerRepositoryImpl } from '../../data/repository/BannerRepositoryImpl
 import { GetBannersUseCase } from '../../domain/usecase/GetBannersUseCase';
 import { promptAction } from '@kit.ArkUI';
 import { PlayerEngine } from '../../../music/service/PlayerEngine';
+import { OrpheusUrlRouter, OrpheusRoute } from '../../../../common/util/OrpheusUrlRouter';
 
 const TARGET_TYPE_SONG: number = 1;
 const TARGET_TYPE_ALBUM: number = 10;
 const TARGET_TYPE_ARTIST: number = 100;
 const TARGET_TYPE_PLAYLIST: number = 1000;
-
-const ORPHEUS_SONG_PREFIX: string = 'orpheus://song/';
-const ORPHEUS_ALBUM_PREFIX: string = 'orpheus://album/';
-const ORPHEUS_ARTIST_PREFIX: string = 'orpheus://artist/';
-const ORPHEUS_PLAYLIST_PREFIX: string = 'orpheus://playlist/';
 
 interface WebViewRoute {
   url: string;
@@ -61,19 +57,43 @@ export struct HomeBanner {
       return;
     }
 
-    const urlHandled = await this.routeByUrlScheme(targetUrl, banner.typeTitle);
-    if (urlHandled) {
-      console.info(`banner click: scheme url=${targetUrl}`);
+    const route = OrpheusUrlRouter.parse(targetUrl);
+    if (!route.handled) {
+      promptAction.showToast({ message: '暂不支持该类型跳转' });
+      console.info(`banner click: unsupported url=${targetUrl}`);
       return;
     }
 
-    if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
-      this.openWebView(targetUrl, banner.typeTitle);
+    if (route.action === 'web' && route.httpUrl) {
+      this.openWebView(route.httpUrl, banner.typeTitle);
+      console.info(`banner click: web url=${route.httpUrl}`);
       return;
     }
 
-    promptAction.showToast({ message: '暂不支持该类型跳转' });
-    console.info(`banner click: unsupported url=${targetUrl}`);
+    await this.applyParsedRoute(route, targetUrl);
+  }
+
+  private async applyParsedRoute(route: OrpheusRoute, rawUrl: string): Promise<void> {
+    switch (route.action) {
+      case 'song':
+        await this.playSong(route.targetId);
+        console.info(`banner click: scheme url=${rawUrl}`);
+        return;
+      case 'album':
+        this.pushDetail('AlbumDetailPage', route.targetId);
+        console.info(`banner click: scheme url=${rawUrl}`);
+        return;
+      case 'artist':
+        this.pushDetail('ArtistDetailPage', route.targetId);
+        console.info(`banner click: scheme url=${rawUrl}`);
+        return;
+      case 'playlist':
+        this.pushDetail('PlaylistDetailPage', route.targetId);
+        console.info(`banner click: scheme url=${rawUrl}`);
+        return;
+      default:
+        return;
+    }
   }
 
   private async routeByTargetType(banner: Banner): Promise<boolean> {
@@ -93,51 +113,6 @@ export struct HomeBanner {
       default:
         return false;
     }
-  }
-
-  private async routeByUrlScheme(url: string, typeTitle: string): Promise<boolean> {
-    if (url.startsWith(ORPHEUS_SONG_PREFIX)) {
-      const id = this.parseId(url, ORPHEUS_SONG_PREFIX);
-      if (id > 0) {
-        await this.playSong(id);
-        return true;
-      }
-    }
-    if (url.startsWith(ORPHEUS_ALBUM_PREFIX)) {
-      const id = this.parseId(url, ORPHEUS_ALBUM_PREFIX);
-      if (id > 0) {
-        this.pushDetail('AlbumDetailPage', id);
-        return true;
-      }
-    }
-    if (url.startsWith(ORPHEUS_ARTIST_PREFIX)) {
-      const id = this.parseId(url, ORPHEUS_ARTIST_PREFIX);
-      if (id > 0) {
-        this.pushDetail('ArtistDetailPage', id);
-        return true;
-      }
-    }
-    if (url.startsWith(ORPHEUS_PLAYLIST_PREFIX)) {
-      const id = this.parseId(url, ORPHEUS_PLAYLIST_PREFIX);
-      if (id > 0) {
-        this.pushDetail('PlaylistDetailPage', id);
-        return true;
-      }
-    }
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      this.openWebView(url, typeTitle);
-      return true;
-    }
-    return false;
-  }
-
-  private parseId(url: string, prefix: string): number {
-    const raw = url.slice(prefix.length);
-    const value = Number.parseInt(raw, 10);
-    if (Number.isNaN(value) || value <= 0) {
-      return 0;
-    }
-    return value;
   }
 
   private pushDetail(name: string, id: number): void {
