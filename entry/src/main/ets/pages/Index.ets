@@ -20,21 +20,11 @@ struct Index {
     const context = getContext(this) as common.UIAbilityContext;
     HttpClient.setGlobalCookieProvider(new SessionStore(context));
     this.authService = new AuthService(context);
-    this.tryEnterWithSavedCookie();
+    this.refreshQrCode();
   }
 
   aboutToDisappear(): void {
     this.stopPolling();
-  }
-
-  private async tryEnterWithSavedCookie(): Promise<void> {
-    this.statusText = '正在检查登录状态...';
-    const cookie = await this.authService?.getCookie() ?? '';
-    if (cookie.trim().length > 0) {
-      router.replaceUrl({ url: 'pages/MainTabs' });
-      return;
-    }
-    this.refreshQrCode();
   }
 
   private async refreshQrCode(): Promise<void> {
@@ -89,6 +79,7 @@ struct Index {
         this.statusText = '登录成功';
         this.stopPolling();
         promptAction.showToast({ message: '登录成功' });
+        AppStorage.setOrCreate<string>('pendingNavTarget', JSON.stringify({ tab: 1 }));
         router.replaceUrl({ url: 'pages/MainTabs' });
       } else if (response.code === 800) {
         this.statusText = '二维码已过期，请刷新';

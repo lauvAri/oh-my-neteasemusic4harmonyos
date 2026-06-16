@@ -66,7 +66,7 @@ export struct MinePage {
       const cookie = await this.authService.getCookie();
       if (cookie.length === 0) {
         this.loaded = false;
-        this.errorText = '未登录，请先完成二维码登录';
+        this.errorText = '登录后可查看账号信息、歌单、收藏等内容';
         return;
       }
 
@@ -690,7 +690,7 @@ export struct MinePage {
               .fontSize(14)
               .fontColor($r('app.color.text_secondary'))
               .textAlign(TextAlign.Center)
-            Button('返回登录')
+            Button('去登录')
               .onClick(() => {
                 router.replaceUrl({ url: 'pages/Index' });
               })

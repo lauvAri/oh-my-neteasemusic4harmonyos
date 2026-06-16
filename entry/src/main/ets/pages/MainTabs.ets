@@ -136,8 +136,15 @@ struct MainTabs {
         const parsed = JSON.parse(target) as Record<string, Object>;
         const page = parsed['page'] as string;
         const id = parsed['id'] as number;
-        this.pathStack.pushPath({ name: page, param: id });
-        AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+        const tab = parsed['tab'] as number;
+        if (page !== undefined && page.length > 0) {
+          this.pathStack.pushPath({ name: page, param: id });
+          AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+        }
+        if (tab === 0 || tab === 1) {
+          this.tabsController.changeIndex(tab);
+          this.currentIndex = tab;
+        }
       } catch (error) {
         hilog.error(DOMAIN, 'NavRoute', `pending nav failed: ${(error as Error).message}`);
       }
