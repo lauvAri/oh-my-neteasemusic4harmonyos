@@ -9,6 +9,7 @@ import { ArtistSublistPage } from './ArtistSublistPage';
 import { AlbumSublistPage } from './AlbumSublistPage';
 import { UserCreatedPlaylistsPage } from './UserCreatedPlaylistsPage';
 import { UserCollectedPlaylistsPage } from './UserCollectedPlaylistsPage';
+import { HighqualityPlaylistsPage } from './HighqualityPlaylistsPage';
 import { WebViewPage, WebViewParams } from './WebViewPage';
 import { MiniPlayerGlassBar } from '../features/music/ui/mini/MiniPlayerGlassBar';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
@@ -90,6 +91,13 @@ function MainTabsRouteMap(name: string, param: Object) {
   } else if (name === 'UserCollectedPlaylistsPage') {
     NavDestination() {
       UserCollectedPlaylistsPage();
+    }
+    .hideTitleBar(true)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .onHidden(trackDepth)
+  } else if (name === 'HighqualityPlaylistsPage') {
+    NavDestination() {
+      HighqualityPlaylistsPage();
     }
     .hideTitleBar(true)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])

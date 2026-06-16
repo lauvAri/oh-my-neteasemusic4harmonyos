@@ -1,25 +1,41 @@
 import common from '@ohos.app.ability.common';
 import { RecommendPlaylist } from '../../domain/model/RecommendPlaylistModels';
 import { RecommendPlaylistApi } from '../../data/api/RecommendPlaylistApi';
+import { HighqualityPlaylistApi } from '../../data/api/HighqualityPlaylistApi';
+import { HighqualityPlaylistItem } from '../../domain/model/HighqualityPlaylistModels';
 import { TwoLineTitle } from '../../../../../common/ui/TwoLineTitle';
+import { SessionStore } from '../../../../../common/storage/SessionStore';
+
+interface HomePlaylistCard {
+  id: number;
+  name: string;
+  coverUrl: string;
+  copywriter: string;
+  playCount: number;
+}
 
 @Component
 export struct RecommendPlaylistRow {
-  @State private playlists: RecommendPlaylist[] = [];
+  @State private playlists: HomePlaylistCard[] = [];
+  @State private isLoggedIn: boolean = false;
   @State private loading: boolean = true;
   @State private errorMessage: string = '';
   @Consume('pathStack') pathStack: NavPathStack;
 
-  private api?: RecommendPlaylistApi;
+  private recommendApi?: RecommendPlaylistApi;
+  private highqualityApi?: HighqualityPlaylistApi;
+  private sessionStore?: SessionStore;
 
   aboutToAppear(): void {
     const context = getContext(this) as common.UIAbilityContext;
-    this.api = new RecommendPlaylistApi(context);
-    this.loadPlaylists();
+    this.recommendApi = new RecommendPlaylistApi(context);
+    this.highqualityApi = new HighqualityPlaylistApi(context);
+    this.sessionStore = new SessionStore(context);
+    void this.loadPlaylists();
   }
 
   private async loadPlaylists(): Promise<void> {
-    if (this.api === undefined) {
+    if (this.recommendApi === undefined || this.highqualityApi === undefined || this.sessionStore === undefined) {
       return;
     }
 
@@ -27,14 +43,41 @@ export struct RecommendPlaylistRow {
     this.errorMessage = '';
 
     try {
-      const response = await this.api.getDailyRecommendResources();
-      this.playlists = response.recommend;
+      const cookie = await this.sessionStore.getCookie();
+      this.isLoggedIn = cookie.length > 0;
+      if (this.isLoggedIn) {
+        const response = await this.recommendApi.getDailyRecommendResources();
+        this.playlists = response.recommend.map((item: RecommendPlaylist): HomePlaylistCard => {
+          return {
+            id: item.id,
+            name: item.name,
+            coverUrl: item.picUrl,
+            copywriter: item.copywriter,
+            playCount: item.playcount
+          };
+        });
+      } else {
+        const response = await this.highqualityApi.getHighqualityPlaylists('全部', 12, 0);
+        this.playlists = response.playlists.map((item: HighqualityPlaylistItem): HomePlaylistCard => {
+          return {
+            id: item.id,
+            name: item.name,
+            coverUrl: item.coverImgUrl,
+            copywriter: item.copywriter,
+            playCount: item.playCount
+          };
+        });
+      }
     } catch (error) {
       const message = (error as Error).message;
-      this.errorMessage = message.length > 0 ? message : '推荐歌单加载失败';
+      this.errorMessage = message.length > 0 ? message : `${this.getSectionTitle()}加载失败`;
     } finally {
       this.loading = false;
     }
+  }
+
+  private getSectionTitle(): string {
+    return this.isLoggedIn ? '推荐歌单' : '精品歌单';
   }
 
   private formatPlayCount(count: number): string {
@@ -50,10 +93,34 @@ export struct RecommendPlaylistRow {
   }
 
   @Builder
-  private playlistCard(playlist: RecommendPlaylist) {
+  private sectionTitle() {
+    Row({ space: 8 }) {
+      Text(this.getSectionTitle())
+        .fontSize(18)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.text_primary'))
+        .layoutWeight(1)
+
+      if (!this.isLoggedIn) {
+        Text('全部')
+          .fontSize(13)
+          .fontColor($r('app.color.text_brand'))
+      }
+    }
+    .width('100%')
+    .onClick(() => {
+      if (!this.isLoggedIn) {
+        this.pathStack.pushPath({ name: 'HighqualityPlaylistsPage' });
+        AppStorage.setOrCreate<number>('mainNavDepth', this.pathStack.size());
+      }
+    })
+  }
+
+  @Builder
+  private playlistCard(playlist: HomePlaylistCard) {
     Column({ space: 6 }) {
       Stack({ alignContent: Alignment.BottomStart }) {
-        Image(playlist.picUrl)
+        Image(playlist.coverUrl)
           .width(120)
           .height(120)
           .borderRadius(8)
@@ -75,8 +142,8 @@ export struct RecommendPlaylistRow {
             Blank()
           }
 
-          if (this.formatPlayCount(playlist.playcount).length > 0) {
-            Text(this.formatPlayCount(playlist.playcount))
+          if (this.formatPlayCount(playlist.playCount).length > 0) {
+            Text(this.formatPlayCount(playlist.playCount))
               .fontSize(11)
               .fontColor(Color.White)
               .backgroundColor('#66000000')
@@ -110,18 +177,14 @@ export struct RecommendPlaylistRow {
 
   build() {
     Column({ space: 10 }) {
-      Text('推荐歌单')
-        .fontSize(18)
-        .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.text_primary'))
-        .width('100%')
+      this.sectionTitle();
 
       if (this.loading) {
         Column({ space: 8 }) {
           LoadingProgress()
             .width(28)
             .height(28)
-          Text('推荐歌单加载中...')
+          Text(`${this.getSectionTitle()}加载中...`)
             .fontSize(13)
             .fontColor($r('app.color.text_secondary'))
         }
@@ -142,7 +205,7 @@ export struct RecommendPlaylistRow {
         .height(140)
         .justifyContent(FlexAlign.Center)
       } else if (this.playlists.length === 0) {
-        Text('暂无推荐歌单')
+        Text(`暂无${this.getSectionTitle()}`)
           .fontSize(13)
           .fontColor($r('app.color.text_secondary'))
           .width('100%')
@@ -151,9 +214,9 @@ export struct RecommendPlaylistRow {
       } else {
         Scroll() {
           Row({ space: 12 }) {
-            ForEach(this.playlists, (item: RecommendPlaylist) => {
+            ForEach(this.playlists, (item: HomePlaylistCard) => {
               this.playlistCard(item);
-            }, (item: RecommendPlaylist) => `${item.id}`)
+            }, (item: HomePlaylistCard) => `${item.id}`)
           }
           .padding({ left: 0, right: 4 })
         }
