@@ -1,1 +1,1 @@
-export const NETEASE_API_BASE_URL: string = 'https://music.rbook.site';
+export const NETEASE_API_BASE_URL: string = 'https://mymusic.rbook.site';
