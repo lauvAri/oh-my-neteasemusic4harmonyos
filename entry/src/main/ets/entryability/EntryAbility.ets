@@ -2,6 +2,7 @@ import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want 
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { PlayerEngine } from '../features/music/service/PlayerEngine';
+import { applySystemBarForCurrentMode } from '../common/util/SystemBarUtil';
 
 const DOMAIN = 0x0000;
 
@@ -35,6 +36,8 @@ export default class EntryAbility extends UIAbility {
         return;
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
+      // 启动时同步系统栏字色到当前系统深浅色模式
+      void applySystemBarForCurrentMode();
     });
   }
 
@@ -55,5 +58,7 @@ export default class EntryAbility extends UIAbility {
       ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK
       : ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT;
     AppStorage.set<number>('currentColorMode', next);
+    // 系统模式变化时主动应用,让状态栏字色跟随切换
+    void applySystemBarForCurrentMode();
   }
 }

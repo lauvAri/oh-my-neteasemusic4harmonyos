@@ -2,6 +2,7 @@ import { router } from '@kit.ArkUI';
 import { MusicPlayerCard } from '../features/music/ui/component/MusicPlayerCard';
 import { PlayerBackgroundPalette, PlayerBackgroundResolver } from '../features/music/ui/background/PlayerBackgroundResolver';
 import { AutoScrollText } from '../common/ui/AutoScrollText';
+import { setStatusBarLightContent } from '../common/util/SystemBarUtil';
 
 const BACK_BUTTON_SIZE_VP: number = 48;
 const BACK_BUTTON_ICON_VP: number = 24;
@@ -33,9 +34,13 @@ struct MusicPlayerPage {
     }
     AppStorage.setOrCreate<string>('currentDetailCover', '');
     this.applyCoverPalette('');
+    // 强制状态栏图标为浅色,与深色背景形成清晰对比
+    void setStatusBarLightContent(true);
   }
 
   aboutToDisappear(): void {
+    // 还原状态栏图标色调为系统默认,避免影响返回后的浅色页面
+    void setStatusBarLightContent(false);
     if (this.paletteCommitTimer >= 0) {
       clearTimeout(this.paletteCommitTimer);
       this.paletteCommitTimer = -1;
