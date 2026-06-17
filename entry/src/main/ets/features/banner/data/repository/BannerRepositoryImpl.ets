@@ -11,6 +11,10 @@ export class BannerRepositoryImpl implements BannerRepository {
 
   async getBanners(): Promise<Banner[]> {
     const response = await this.bannerApi.getBanners();
-    return response.banners ?? [];
+    const banners: Banner[] = response.banners ?? [];
+    // 只保留 orpheus:// 站内跳转,过滤 https:// 等外链,避免跳到 music.163.com H5
+    return banners.filter((banner: Banner): boolean =>
+      typeof banner.url === 'string' && banner.url.toLowerCase().startsWith('orpheus://')
+    );
   }
 }
