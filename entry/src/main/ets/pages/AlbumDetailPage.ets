@@ -195,7 +195,7 @@ export struct AlbumDetailPage {
             .width('100%')
 
             // Description row (网易云风格: 截断显示 + ">" 箭头)
-            if (this.album.description.length > 0) {
+            if (this.album.description !== null && this.album.description.length > 0) {
               Row() {
                 Text(this.album.description)
                   .fontSize(13)
@@ -301,7 +301,7 @@ export struct AlbumDetailPage {
 
       // Scrollable description
       Scroll() {
-        Text(this.album ? this.album.description : '')
+        Text(this.album?.description ?? '')
           .fontSize(15)
           .fontColor($r('app.color.text_secondary'))
           .lineHeight(26)

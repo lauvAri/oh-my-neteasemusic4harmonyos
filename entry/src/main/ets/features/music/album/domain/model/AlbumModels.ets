@@ -12,7 +12,7 @@ export interface AlbumInfo {
   artist: AlbumArtist;
   size: number;
   publishTime: number;
-  description: string;
+  description: string | null;
   company: string;
 }
 
