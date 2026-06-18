@@ -40,7 +40,7 @@ struct Index {
       const session: QrLoginSession = await this.authService.createQrLogin();
       this.qrKey = session.key;
       this.qrImage = session.qrimg;
-      this.statusText = '请使用网易云音乐 App 扫码登录';
+      this.statusText = '请使用云音乐 App 扫码登录';
       this.startPolling();
     } catch (error) {
       this.statusText = `二维码生成失败：${(error as Error).message}`;
@@ -72,7 +72,7 @@ struct Index {
     try {
       const response = await this.authService.checkQrLogin(this.qrKey);
       if (response.code === 801) {
-        this.statusText = '请使用网易云音乐 App 扫码登录';
+        this.statusText = '请使用云音乐 App 扫码登录';
       } else if (response.code === 802) {
         this.statusText = '已扫码，请在手机上确认登录';
       } else if (response.code === 803) {
@@ -92,7 +92,7 @@ struct Index {
 
   build() {
     Column({ space: 18 }) {
-      Text('网易云音乐二维码登录')
+      Text('云音乐二维码登录')
         .fontSize(24)
         .fontWeight(FontWeight.Medium)
 
