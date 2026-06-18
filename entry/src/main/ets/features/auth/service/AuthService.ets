@@ -1,6 +1,6 @@
 import common from '@ohos.app.ability.common';
 import { HttpClient } from '../../../common/network/HttpClient';
-import { NETEASE_API_BASE_URL } from '../../../common/network/ApiConfig';
+import { NETEASE_API_BASE_URL, NETEASE_PATH_REGISTER_ANONYMous } from '../../../common/network/ApiConfig';
 import { SessionStore } from '../../../common/storage/SessionStore';
 
 export interface QrKeyResponse {
@@ -62,6 +62,18 @@ export interface UserAccountResponse {
   profile: UserProfile;
 }
 
+export interface AnonymousResponse {
+  code: number;
+}
+
+export interface AnonymousLoginResult {
+  status: number;
+  cookieHeader: string;
+  nmtId: string;
+}
+
+const NMTID_NAME: string = 'NMTID';
+
 export class AuthService {
   private httpClient: HttpClient;
   private sessionStore?: SessionStore;
@@ -99,6 +111,44 @@ export class AuthService {
 
   async getAccountInfo(): Promise<UserAccountResponse> {
     return this.httpClient.post<UserAccountResponse>(`/user/account?timestamp=${Date.now()}`);
+  }
+
+  async loginAnonymously(): Promise<AnonymousLoginResult | null> {
+    try {
+      const response = await this.httpClient.getWithHeaders<AnonymousResponse>(
+        NETEASE_PATH_REGISTER_ANONYMous,
+        [200, 400] // 400 是文档约定的"成功"标记,NMTID 通过 Set-Cookie 头下发
+      );
+
+      const raw = response.headers['set-cookie'] ?? response.headers['Set-Cookie'];
+      const cookieLines: string[] = Array.isArray(raw) ? raw : (raw !== undefined ? [raw] : []);
+
+      const nmtidLine: string | undefined = cookieLines
+        .find((line: string) => line.trim().startsWith(`${NMTID_NAME}=`));
+
+      if (nmtidLine === undefined) {
+        console.warn('loginAnonymously: NMTID not found in Set-Cookie header');
+        return null;
+      }
+
+      const semicolonIndex: number = nmtidLine.indexOf(';');
+      const bareCookie: string = semicolonIndex === -1
+        ? nmtidLine.trim()
+        : nmtidLine.substring(0, semicolonIndex).trim();
+
+      if (this.sessionStore !== undefined) {
+        await this.sessionStore.saveCookie(bareCookie);
+      }
+
+      return {
+        status: response.data.code,
+        cookieHeader: bareCookie,
+        nmtId: bareCookie.substring(NMTID_NAME.length + 1)
+      };
+    } catch (error) {
+      console.warn(`loginAnonymously failed: ${(error as Error).message}`);
+      return null;
+    }
   }
 
   async getCookie(): Promise<string> {

@@ -15,6 +15,11 @@ export interface CookieProvider {
   getCookie: () => Promise<string>;
 }
 
+export interface HttpResponseWithHeaders<T> {
+  data: T;
+  headers: Record<string, string | string[]>;
+}
+
 interface RequestBody {
   cookie?: string;
 }
@@ -51,6 +56,67 @@ export class HttpClient {
 
   async postRaw<T>(path: string, body?: object): Promise<T> {
     return this.rawRequest<T>(path, body);
+  }
+
+  async getWithHeaders<T extends ApiResponse>(
+    path: string,
+    successCodes: number[]
+  ): Promise<HttpResponseWithHeaders<T>> {
+    return this.requestWithHeaders<T>(path, undefined, successCodes, false, http.RequestMethod.GET);
+  }
+
+  private async requestWithHeaders<T extends ApiResponse>(
+    path: string,
+    body: object | undefined,
+    successCodes: number[],
+    shouldAppendCookie: boolean,
+    method: http.RequestMethod
+  ): Promise<HttpResponseWithHeaders<T>> {
+    const request = http.createHttp();
+    const url = this.buildUrl(path);
+
+    try {
+      const requestBodyText = await this.createBodyText(body, shouldAppendCookie);
+      const response = await request.request(url, {
+        method: method,
+        header: this.createHeaders(),
+        extraData: requestBodyText,
+        expectDataType: http.HttpDataType.STRING,
+        connectTimeout: 15000,
+        readTimeout: 15000
+      });
+
+      const responseBodyText = typeof response.result === 'string'
+        ? response.result
+        : JSON.stringify(response.result);
+
+      let parsed: T;
+      try {
+        parsed = JSON.parse(responseBodyText) as T;
+      } catch (error) {
+        throw ApiException.parse((error as Error).message);
+      }
+
+      if (typeof parsed.code !== 'number') {
+        throw ApiException.parse('响应中缺少 code 字段');
+      }
+      if (!successCodes.includes(parsed.code)) {
+        const errorMessage = this.resolveBusinessMessage(parsed);
+        throw ApiException.business(parsed.code, errorMessage);
+      }
+
+      return {
+        data: parsed,
+        headers: response.header as Record<string, string | string[]>
+      };
+    } catch (error) {
+      if (error instanceof ApiException) {
+        throw error;
+      }
+      throw ApiException.network((error as Error).message);
+    } finally {
+      request.destroy();
+    }
   }
 
   private async request<T extends ApiResponse>(
