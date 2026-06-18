@@ -1,4 +1,4 @@
-后端API部署在 https://1326430649-cz7h9y1id3.ap-guangzhou.tencentscf.com
+后端API部署在 https://mymusic.rbook.site
 
 API 文档：https://docs-neteasecloudmusicapi.focalors.ltd/#/
 
