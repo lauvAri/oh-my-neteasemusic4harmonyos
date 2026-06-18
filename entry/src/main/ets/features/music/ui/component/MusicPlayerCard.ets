@@ -9,7 +9,7 @@ import { GetSongDetailUseCase, SongDetailAggregate } from '../../domain/usecase/
 import { PlayerEngine, PlaybackMode } from '../../service/PlayerEngine';
 import { Song } from '../../domain/model/Song';
 import { SessionStore } from '../../../../common/storage/SessionStore';
-import { VinylCover } from '../../../../common/ui/VinylCover';
+import { AlbumCover } from '../../../../common/ui/AlbumCover';
 import { AutoScrollText } from '../../../../common/ui/AutoScrollText';
 import { UserPlaylistApi } from '../../../mine/data/api/UserPlaylistApi';
 import { UserPlaylistItem } from '../../../mine/domain/model/MineModels';
@@ -1355,9 +1355,8 @@ export struct MusicPlayerCard {
   @Builder
   private CoverView() {
     Column({ space: 18 }) {
-      VinylCover({
-        coverUrl: this.songDetail ? this.songDetail.al.picUrl : '',
-        discPercent: '86%'
+      AlbumCover({
+        coverUrl: this.songDetail ? this.songDetail.al.picUrl : ''
       })
 
       Column({ space: 4 }) {
