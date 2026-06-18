@@ -87,7 +87,7 @@ export class AuthService {
 
   async checkQrLogin(key: string): Promise<QrCheckResponse> {
     const response = await this.httpClient.postWithSuccessCodesWithoutCookie<QrCheckResponse>(
-      `/login/qr/check?key=${encodeURIComponent(key)}&timestamp=${Date.now()}`,
+      `/login/qr/check?key=${encodeURIComponent(key)}&timestamp=${Date.now()}&noCookie=true`,
       undefined,
       [800, 801, 802, 803]
     );
