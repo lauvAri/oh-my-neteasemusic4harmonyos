@@ -11,3 +11,5 @@
 **/.test
 /.appanalyzer
 /submit
+# local signing material backup (do NOT commit)
+/local.signing.json5
